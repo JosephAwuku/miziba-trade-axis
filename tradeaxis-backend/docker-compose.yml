@@ -1,0 +1,69 @@
+version: '3.9'
+
+services:
+  api:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://tradeaxis:tradeaxis@db:5432/tradeaxis
+      REDIS_URL: redis://cache:6379
+      JWT_SECRET: dev-secret-change-in-production-min-256-bits
+      TRADEVAULT_WEBHOOK_SECRET: dev-tradevault-hmac-secret
+      TRACKGUARD_WEBHOOK_SECRET: dev-trackguard-hmac-secret
+      AWS_S3_BUCKET: miziba-tradeaxis-docs-dev
+      AWS_REGION: af-south-1
+      PORT: 3000
+      LOG_LEVEL: debug
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: npm run dev
+
+  notification-worker:
+    build: .
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://tradeaxis:tradeaxis@db:5432/tradeaxis
+      REDIS_URL: redis://cache:6379
+      AWS_REGION: af-south-1
+    depends_on:
+      - db
+      - cache
+    command: node src/workers/notification-worker.js
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: tradeaxis
+      POSTGRES_PASSWORD: tradeaxis
+      POSTGRES_DB: tradeaxis
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/001_schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tradeaxis"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  cache:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  postgres_data:

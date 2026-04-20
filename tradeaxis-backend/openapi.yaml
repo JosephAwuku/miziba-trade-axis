@@ -1,0 +1,1405 @@
+openapi: 3.0.3
+
+info:
+  title: TradeAxis API
+  description: |
+    Miziba Infrastructure Ltd — Module 4: Trade Finance Origination Platform.
+    All monetary values in USD unless stated. All timestamps ISO 8601.
+    Finance partner is ALWAYS paid first in the waterfall settlement.
+  version: 1.0.0
+  contact:
+    name: Miziba Platform Team
+    email: platform@miziba.com
+
+servers:
+  - url: https://api.tradeaxis.miziba.com/v1
+    description: Production
+  - url: https://api-staging.tradeaxis.miziba.com/v1
+    description: Staging
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Auth
+  - name: Trades
+  - name: Validation
+  - name: Risk
+  - name: FinancePartner
+  - name: Deployment
+  - name: Logistics
+  - name: Settlement
+  - name: Documents
+  - name: Portfolio
+  - name: Notifications
+  - name: Webhooks
+  - name: Admin
+
+# ─── PATHS ───────────────────────────────────────────────────────────────────
+
+paths:
+
+  # ── AUTH ────────────────────────────────────────────────────────────────────
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Authenticate user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:    { type: string, format: email }
+                password: { type: string }
+                totp_code:{ type: string, description: "Required if 2FA enabled" }
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:      { type: string }
+                  expires_at: { type: string, format: date-time }
+                  user:       { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke session token
+      responses:
+        '204': { description: Session revoked }
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current authenticated user
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+
+  # ── TRADES ──────────────────────────────────────────────────────────────────
+
+  /trades:
+    get:
+      tags: [Trades]
+      summary: List trades (filtered by role)
+      description: |
+        - deal_officer / ceo / cfo: all trades
+        - trader: own trades only
+        - finance_partner: trades in FINANCE_REVIEW assigned to them + own portfolio
+      parameters:
+        - name: stage
+          in: query
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/TradeStage' }
+          style: form
+          explode: false
+        - name: commodity
+          in: query
+          schema: { $ref: '#/components/schemas/Commodity' }
+        - name: fp_org_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: trader_org_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: from_date
+          in: query
+          schema: { type: string, format: date }
+        - name: to_date
+          in: query
+          schema: { type: string, format: date }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: per_page
+          in: query
+          schema: { type: integer, default: 25, maximum: 100 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:  { type: array, items: { $ref: '#/components/schemas/TradeSummary' } }
+                  total: { type: integer }
+                  page:  { type: integer }
+
+    post:
+      tags: [Trades]
+      summary: Submit new trade application
+      description: Accessible by trader role only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TradeApplicationInput' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Trade' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /trades/{id}:
+    get:
+      tags: [Trades]
+      summary: Get trade detail
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Trade' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /trades/{id}/stage:
+    patch:
+      tags: [Trades]
+      summary: Advance trade to next stage
+      description: |
+        deal_officer / ceo only.
+        Enforces sequential stage transitions with guards.
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [stage]
+              properties:
+                stage: { $ref: '#/components/schemas/TradeStage' }
+                notes: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Trade' }
+        '409':
+          description: Stage transition not allowed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /trades/{id}/decline:
+    post:
+      tags: [Trades]
+      summary: Decline a trade application
+      description: deal_officer / ceo only. Reason is logged and trader notified.
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 10 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Trade' }
+
+  # ── VALIDATION ───────────────────────────────────────────────────────────────
+
+  /trades/{id}/validation:
+    get:
+      tags: [Validation]
+      summary: Get validation checklist for a trade
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TradeValidation' }
+
+    patch:
+      tags: [Validation]
+      summary: Update validation checklist item(s)
+      description: deal_officer / ceo only.
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                buyer_verified:     { type: boolean }
+                price_verified:     { type: boolean }
+                sourcing_verified:  { type: boolean }
+                kyc_verified:       { type: boolean }
+                regulatory_verified:{ type: boolean }
+                notes:              { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TradeValidation' }
+
+  /trades/{id}/escalate:
+    post:
+      tags: [Validation]
+      summary: Escalate trade to CEO for review
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CEOEscalation' }
+
+  /trades/{id}/escalation/decision:
+    post:
+      tags: [Validation]
+      summary: CEO records decision on escalated trade
+      description: ceo role only.
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision:
+                  type: string
+                  enum: [approve_direct, require_validation, decline]
+                notes: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CEOEscalation' }
+
+  # ── RISK ─────────────────────────────────────────────────────────────────────
+
+  /trades/{id}/risk:
+    get:
+      tags: [Risk]
+      summary: Get risk score for a trade
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RiskScore' }
+
+    put:
+      tags: [Risk]
+      summary: Set or update risk score
+      description: deal_officer / ceo only.
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RiskScoreInput' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RiskScore' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /risk/calculator:
+    post:
+      tags: [Risk]
+      summary: Calculate risk score without saving (preview)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RiskScoreInput' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RiskScore' }
+
+  # ── FINANCE DATA PACKAGE ─────────────────────────────────────────────────────
+
+  /trades/{id}/fdp:
+    get:
+      tags: [FinancePartner]
+      summary: Get current Finance Data Package for a trade
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FinanceDataPackage' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+    post:
+      tags: [FinancePartner]
+      summary: Generate a new Finance Data Package
+      description: deal_officer / ceo only. Requires validation complete + risk score set.
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FinanceDataPackage' }
+
+  /trades/{id}/fdp/send:
+    post:
+      tags: [FinancePartner]
+      summary: Send Finance Data Package to assigned finance partner
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sent_at: { type: string, format: date-time }
+                  sent_to: { type: string }
+
+  /trades/{id}/fdp/pdf:
+    get:
+      tags: [FinancePartner]
+      summary: Get pre-signed S3 URL for Finance Data Package PDF download
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:        { type: string, format: uri }
+                  expires_at: { type: string, format: date-time }
+
+  # ── FINANCE PARTNER DECISIONS ─────────────────────────────────────────────
+
+  /trades/{id}/fp-decision:
+    post:
+      tags: [FinancePartner]
+      summary: Finance partner records approval or decline decision
+      description: finance_partner role only.
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision:
+                  type: string
+                  enum: [approve, decline, info_request]
+                notes:        { type: string }
+                info_request: { type: string, description: "Required if decision = info_request" }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FPDecision' }
+
+  # ── DEPLOYMENT ───────────────────────────────────────────────────────────────
+
+  /trades/{id}/deployment:
+    get:
+      tags: [Deployment]
+      summary: Get deployment dashboard data for a trade
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeploymentDashboard' }
+
+    patch:
+      tags: [Deployment]
+      summary: Update deployment metrics (manual update in standalone mode)
+      description: deal_officer / ceo only.
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                capital_deployed_pct: { type: number }
+                volume_procured_mt:   { type: number }
+                eudr_compliance_pct:  { type: number }
+                grade_a_pct:          { type: number }
+                grade_b_pct:          { type: number }
+                grade_c_pct:          { type: number }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeploymentDashboard' }
+
+  /trades/{id}/batches:
+    get:
+      tags: [Deployment]
+      summary: List farmer payment batches for a trade
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DeploymentBatch' }
+
+    post:
+      tags: [Deployment]
+      summary: Log a new farmer payment batch
+      description: deal_officer only. In integrated mode, batches are created automatically via TradeVault webhook.
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BatchInput' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeploymentBatch' }
+
+  # ── LOGISTICS ────────────────────────────────────────────────────────────────
+
+  /trades/{id}/logistics:
+    get:
+      tags: [Logistics]
+      summary: Get logistics summary panel for a trade (TrackGuard layer)
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LogisticsSummary' }
+
+  /trades/{id}/logistics/alerts:
+    get:
+      tags: [Logistics]
+      summary: Get shipment alerts for a trade
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ShipmentAlert' }
+
+  # ── SETTLEMENT ───────────────────────────────────────────────────────────────
+
+  /trades/{id}/settlement:
+    get:
+      tags: [Settlement]
+      summary: Get waterfall settlement calculation for a trade
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaterfallInstruction' }
+
+    post:
+      tags: [Settlement]
+      summary: CFO confirms buyer payment and instructs waterfall
+      description: cfo role only. Triggers TradeVault waterfall instruction.
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [buyer_payment_usd, buyer_payment_date]
+              properties:
+                buyer_payment_usd:  { type: number }
+                buyer_payment_date: { type: string, format: date }
+                tradevault_ref:     { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaterfallInstruction' }
+
+  /trades/{id}/non-payment:
+    get:
+      tags: [Settlement]
+      summary: Get non-payment protocol status
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NonPaymentProtocol' }
+
+    post:
+      tags: [Settlement]
+      summary: Open non-payment protocol
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NonPaymentProtocol' }
+
+  /trades/{id}/non-payment/escalate:
+    post:
+      tags: [Settlement]
+      summary: Advance non-payment protocol to next step
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NonPaymentProtocol' }
+
+  # ── CLOSURE ──────────────────────────────────────────────────────────────────
+
+  /trades/{id}/closure:
+    get:
+      tags: [Settlement]
+      summary: Get trade closure checklist
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClosureChecklist' }
+
+    patch:
+      tags: [Settlement]
+      summary: Update closure checklist items
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                waterfall_confirmed: { type: boolean }
+                trr_received:        { type: boolean }
+                ccc_received:        { type: boolean }
+                buyer_perf_recorded: { type: boolean }
+                trader_rec_updated:  { type: boolean }
+                fp_report_sent:      { type: boolean }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClosureChecklist' }
+
+  /trades/{id}/closure/lock:
+    post:
+      tags: [Settlement]
+      summary: Lock and close a trade record (irreversible)
+      description: deal_officer / ceo only. All 7 checklist items must be complete.
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Trade' }
+        '409':
+          description: Checklist incomplete
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  # ── DOCUMENTS ────────────────────────────────────────────────────────────────
+
+  /trades/{id}/documents:
+    get:
+      tags: [Documents]
+      summary: List documents for a trade
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/TradeDocument' }
+
+    post:
+      tags: [Documents]
+      summary: Get pre-signed S3 upload URL for a new document
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [doc_type, filename, mime_type]
+              properties:
+                doc_type:  { type: string }
+                filename:  { type: string }
+                mime_type: { type: string }
+                size_bytes:{ type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  upload_url: { type: string, format: uri }
+                  doc_id:     { type: string, format: uuid }
+                  expires_at: { type: string, format: date-time }
+
+  /trades/{id}/documents/{doc_id}:
+    get:
+      tags: [Documents]
+      summary: Get pre-signed download URL for a document
+      parameters:
+        - $ref: '#/components/parameters/TradeId'
+        - name: doc_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:        { type: string, format: uri }
+                  expires_at: { type: string, format: date-time }
+
+  # ── PORTFOLIO ────────────────────────────────────────────────────────────────
+
+  /portfolio:
+    get:
+      tags: [Portfolio]
+      summary: Get portfolio dashboard metrics
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PortfolioMetrics' }
+
+  /portfolio/buyers:
+    get:
+      tags: [Portfolio]
+      summary: Get buyer creditworthiness database
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/BuyerProfile' }
+
+  /portfolio/finance-partners:
+    get:
+      tags: [Portfolio]
+      summary: Get Finance Partner CRM data
+      description: deal_officer / ceo only.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/FinancePartnerCRM' }
+
+  /portfolio/risk-evolution/{trader_org_id}:
+    get:
+      tags: [Portfolio]
+      summary: Get trader risk score evolution history
+      parameters:
+        - name: trader_org_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/RiskHistoryPoint' }
+
+  # ── NOTIFICATIONS ─────────────────────────────────────────────────────────
+
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: Get notifications for current user
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [QUEUED, SENT, FAILED, READ]
+        - name: unread_only
+          in: query
+          schema: { type: boolean }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Notification' }
+
+  /notifications/{id}/read:
+    post:
+      tags: [Notifications]
+      summary: Mark notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Marked as read }
+
+  # ── WEBHOOKS ─────────────────────────────────────────────────────────────────
+
+  /webhooks/tradevault:
+    post:
+      tags: [Webhooks]
+      summary: Receive webhook events from TradeVault
+      description: Internal endpoint. Validates HMAC-SHA256 signature.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TradeVaultEvent' }
+      responses:
+        '200': { description: Event acknowledged }
+        '401': { description: Invalid signature }
+
+  /webhooks/trackguard:
+    post:
+      tags: [Webhooks]
+      summary: Receive webhook events from TrackGuard
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TrackGuardEvent' }
+      responses:
+        '200': { description: Event acknowledged }
+
+  # ── ADMIN ─────────────────────────────────────────────────────────────────
+
+  /admin/organisations:
+    post:
+      tags: [Admin]
+      summary: Create new organisation (trader / finance partner)
+      description: ceo only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrganisationInput' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Organisation' }
+
+  /admin/users:
+    post:
+      tags: [Admin]
+      summary: Create new user
+      description: ceo only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserInput' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+
+# ─── COMPONENTS ──────────────────────────────────────────────────────────────
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    TradeId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      description: Trade UUID
+
+  responses:
+    Unauthorized:
+      description: Invalid or missing authentication token
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Insufficient permissions for this role
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: Request body validation failed
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Error'
+              - type: object
+                properties:
+                  fields:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items: { type: string }
+
+  schemas:
+
+    Error:
+      type: object
+      properties:
+        error:   { type: string }
+        message: { type: string }
+        code:    { type: string }
+
+    TradeStage:
+      type: string
+      enum:
+        - SUBMITTED
+        - UNDER_VALIDATION
+        - VALIDATED
+        - FINANCE_REVIEW
+        - FUNDED
+        - PROCURING
+        - DELIVERED
+        - SETTLED
+        - CLOSED
+
+    Commodity:
+      type: string
+      enum: [cashew, shea, sesame, sorghum, soya]
+
+    User:
+      type: object
+      properties:
+        id:         { type: string, format: uuid }
+        email:      { type: string }
+        full_name:  { type: string }
+        role:       { type: string, enum: [deal_officer, ceo, cfo, trader, finance_partner] }
+        org_id:     { type: string, format: uuid }
+        org_name:   { type: string }
+        created_at: { type: string, format: date-time }
+
+    UserInput:
+      type: object
+      required: [email, full_name, role, org_id, password]
+      properties:
+        email:     { type: string, format: email }
+        full_name: { type: string }
+        role:      { type: string, enum: [deal_officer, ceo, cfo, trader, finance_partner] }
+        org_id:    { type: string, format: uuid }
+        password:  { type: string, minLength: 12 }
+        phone:     { type: string }
+
+    Organisation:
+      type: object
+      properties:
+        id:              { type: string, format: uuid }
+        name:            { type: string }
+        type:            { type: string, enum: [miziba, trader, finance_partner, buyer] }
+        country:         { type: string }
+        registration_no: { type: string }
+        kyc_status:      { type: string }
+        created_at:      { type: string, format: date-time }
+
+    OrganisationInput:
+      type: object
+      required: [name, type, country]
+      properties:
+        name:            { type: string }
+        type:            { type: string, enum: [trader, finance_partner, buyer] }
+        country:         { type: string }
+        registration_no: { type: string }
+        tin:             { type: string }
+        email:           { type: string, format: email }
+        phone:           { type: string }
+
+    TradeSummary:
+      type: object
+      properties:
+        id:                   { type: string, format: uuid }
+        trade_ref:            { type: string }
+        trader_name:          { type: string }
+        buyer_name:           { type: string }
+        commodity:            { $ref: '#/components/schemas/Commodity' }
+        grade:                { type: string, enum: [A, B, C] }
+        volume_mt:            { type: number }
+        contract_value_usd:   { type: number }
+        finance_facility_usd: { type: number }
+        stage:                { $ref: '#/components/schemas/TradeStage' }
+        kyc_status:           { type: string }
+        risk_score:           { type: integer, nullable: true }
+        capital_deployed_pct: { type: number }
+        deadline_date:        { type: string, format: date }
+        applied_at:           { type: string, format: date-time }
+
+    Trade:
+      allOf:
+        - $ref: '#/components/schemas/TradeSummary'
+        - type: object
+          properties:
+            procurement_cost_usd:   { type: number }
+            trader_equity_usd:      { type: number }
+            price_per_mt_usd:       { type: number }
+            delivery_point:         { type: string }
+            payment_terms_days:     { type: integer }
+            fp_org_id:              { type: string, format: uuid, nullable: true }
+            fp_name:                { type: string, nullable: true }
+            deal_officer_id:        { type: string, format: uuid, nullable: true }
+            escrow_id:              { type: string, nullable: true }
+            shipment_id:            { type: string, nullable: true }
+            eudr_compliance_pct:    { type: number, nullable: true }
+            grade_a_pct:            { type: number, nullable: true }
+            grade_b_pct:            { type: number, nullable: true }
+            grade_c_pct:            { type: number, nullable: true }
+            delivered_weight_mt:    { type: number, nullable: true }
+            weight_variance_pct:    { type: number, nullable: true }
+            buyer_payment_usd:      { type: number, nullable: true }
+            buyer_payment_date:     { type: string, format: date, nullable: true }
+            declined_at:            { type: string, format: date-time, nullable: true }
+            decline_reason:         { type: string, nullable: true }
+            validated_at:           { type: string, format: date-time, nullable: true }
+            funded_at:              { type: string, format: date-time, nullable: true }
+            settled_at:             { type: string, format: date-time, nullable: true }
+            closed_at:              { type: string, format: date-time, nullable: true }
+            updated_at:             { type: string, format: date-time }
+
+    TradeApplicationInput:
+      type: object
+      required: [commodity, grade, volume_mt, buyer_id, price_per_mt_usd,
+                 procurement_cost_usd, trader_equity_usd, finance_facility_usd,
+                 delivery_point, deadline_date, payment_terms_days]
+      properties:
+        commodity:             { $ref: '#/components/schemas/Commodity' }
+        grade:                 { type: string, enum: [A, B, C] }
+        volume_mt:             { type: number, minimum: 1 }
+        buyer_id:              { type: string, format: uuid }
+        price_per_mt_usd:      { type: number, minimum: 1 }
+        procurement_cost_usd:  { type: number, minimum: 1 }
+        trader_equity_usd:     { type: number, minimum: 0 }
+        finance_facility_usd:  { type: number, minimum: 0 }
+        delivery_point:        { type: string }
+        deadline_date:         { type: string, format: date }
+        payment_terms_days:    { type: integer, minimum: 1 }
+
+    TradeValidation:
+      type: object
+      properties:
+        trade_id:            { type: string, format: uuid }
+        buyer_verified:      { type: boolean }
+        price_verified:      { type: boolean }
+        sourcing_verified:   { type: boolean }
+        kyc_verified:        { type: boolean }
+        regulatory_verified: { type: boolean }
+        completed_count:     { type: integer }
+        is_complete:         { type: boolean }
+        completed_by:        { type: string, format: uuid, nullable: true }
+        completed_at:        { type: string, format: date-time, nullable: true }
+
+    RiskScoreInput:
+      type: object
+      required: [buyer_risk, trader_risk, commodity_price_risk,
+                 sourcing_supply_risk, logistics_delivery_risk]
+      properties:
+        buyer_risk:                { type: integer, minimum: 0, maximum: 25 }
+        trader_risk:               { type: integer, minimum: 0, maximum: 25 }
+        commodity_price_risk:      { type: integer, minimum: 0, maximum: 20 }
+        sourcing_supply_risk:      { type: integer, minimum: 0, maximum: 15 }
+        logistics_delivery_risk:   { type: integer, minimum: 0, maximum: 15 }
+        notes:                     { type: string }
+
+    RiskScore:
+      allOf:
+        - $ref: '#/components/schemas/RiskScoreInput'
+        - type: object
+          properties:
+            total:           { type: integer }
+            band:            { type: string, enum: [LOW_RISK, MODERATE_RISK, ELEVATED_RISK, HIGH_RISK] }
+            action:          { type: string }
+            can_submit_direct: { type: boolean }
+            requires_ceo:    { type: boolean }
+            should_decline:  { type: boolean }
+            breakdown:
+              type: array
+              items:
+                type: object
+                properties:
+                  dimension: { type: string }
+                  label:     { type: string }
+                  score:     { type: integer }
+                  max:       { type: integer }
+                  pct:       { type: integer }
+            scored_by:  { type: string, format: uuid }
+            scored_at:  { type: string, format: date-time }
+
+    CEOEscalation:
+      type: object
+      properties:
+        id:            { type: string, format: uuid }
+        trade_id:      { type: string, format: uuid }
+        escalated_by:  { type: string, format: uuid }
+        escalated_at:  { type: string, format: date-time }
+        decision:      { type: string, nullable: true }
+        decided_at:    { type: string, format: date-time, nullable: true }
+
+    FinanceDataPackage:
+      type: object
+      properties:
+        id:           { type: string, format: uuid }
+        trade_id:     { type: string, format: uuid }
+        version:      { type: integer }
+        generated_at: { type: string, format: date-time }
+        sent_to_fp_at:{ type: string, format: date-time, nullable: true }
+        sections:     { type: object, description: "Full FDP content object" }
+        pdf_url:      { type: string, format: uri, nullable: true }
+
+    FPDecision:
+      type: object
+      properties:
+        id:          { type: string, format: uuid }
+        trade_id:    { type: string, format: uuid }
+        fp_org_id:   { type: string, format: uuid }
+        decision:    { type: string, enum: [approve, decline, info_request] }
+        decided_by:  { type: string, format: uuid }
+        decided_at:  { type: string, format: date-time }
+        notes:       { type: string, nullable: true }
+
+    DeploymentDashboard:
+      type: object
+      properties:
+        trade_id:             { type: string, format: uuid }
+        capital_deployed_pct: { type: number }
+        volume_procured_mt:   { type: number }
+        volume_target_mt:     { type: number }
+        eudr_compliance_pct:  { type: number, nullable: true }
+        grade_a_pct:          { type: number, nullable: true }
+        grade_b_pct:          { type: number, nullable: true }
+        grade_c_pct:          { type: number, nullable: true }
+        total_batches:        { type: integer }
+        confirmed_batches:    { type: integer }
+        total_paid_usd:       { type: number }
+        health_status:        { type: string, enum: [HEALTHY, WARNING, CRITICAL] }
+        alerts:
+          type: array
+          items:
+            type: object
+            properties:
+              severity: { type: string }
+              code:     { type: string }
+              message:  { type: string }
+
+    DeploymentBatch:
+      type: object
+      properties:
+        id:              { type: string, format: uuid }
+        batch_ref:       { type: string }
+        trade_id:        { type: string, format: uuid }
+        farmer_id_anon:  { type: string }
+        tradepoint_name: { type: string }
+        weight_kg:       { type: number }
+        amount_ghs:      { type: number }
+        amount_usd:      { type: number }
+        status:          { type: string, enum: [PENDING, CONFIRMED, FAILED] }
+        eudr_verified:   { type: boolean }
+        grade:           { type: string, nullable: true }
+        paid_at:         { type: string, format: date-time, nullable: true }
+
+    BatchInput:
+      type: object
+      required: [farmer_id_anon, tradepoint_name, weight_kg, amount_ghs, amount_usd]
+      properties:
+        farmer_id_anon:    { type: string }
+        tradepoint_name:   { type: string }
+        weight_kg:         { type: number }
+        amount_ghs:        { type: number }
+        amount_usd:        { type: number }
+        eudr_verified:     { type: boolean }
+        grade:             { type: string, enum: [A, B, C] }
+        tradevault_tx_id:  { type: string }
+
+    LogisticsSummary:
+      type: object
+      properties:
+        trade_id:           { type: string, format: uuid }
+        trackguard_id:      { type: string, nullable: true }
+        status:             { type: string }
+        origin:             { type: string, nullable: true }
+        destination:        { type: string }
+        eta:                { type: string, format: date-time, nullable: true }
+        delivered_at:       { type: string, format: date-time, nullable: true }
+        last_gps_city:      { type: string, nullable: true }
+        delivered_weight_mt:{ type: number, nullable: true }
+        weight_variance_pct:{ type: number, nullable: true }
+        ccc_issued:         { type: boolean }
+        note: { type: string, default: "Full GPS track and IoT sensor data available in TrackGuard. This endpoint returns status summary only." }
+
+    ShipmentAlert:
+      type: object
+      properties:
+        id:          { type: string, format: uuid }
+        alert_type:  { type: string }
+        severity:    { type: string, enum: [INFO, WARN, CRITICAL] }
+        message:     { type: string }
+        occurred_at: { type: string, format: date-time }
+        resolved_at: { type: string, format: date-time, nullable: true }
+
+    WaterfallInstruction:
+      type: object
+      properties:
+        id:                    { type: string, format: uuid }
+        trade_id:              { type: string, format: uuid }
+        buyer_payment_usd:     { type: number }
+        fp_principal_usd:      { type: number }
+        fp_fee_usd:            { type: number }
+        fp_total_usd:          { type: number }
+        miziba_fee_usd:        { type: number }
+        trader_margin_usd:     { type: number }
+        status:                { type: string }
+        fp_payment_confirmed:  { type: boolean }
+        trader_released:       { type: boolean }
+        shortfall:             { type: boolean }
+        settlement_order:      { type: array, items: { type: string } }
+        tradevault_ref:        { type: string, nullable: true }
+
+    NonPaymentProtocol:
+      type: object
+      properties:
+        id:           { type: string, format: uuid }
+        trade_id:     { type: string, format: uuid }
+        current_step: { type: integer }
+        resolved:     { type: boolean }
+        opened_at:    { type: string, format: date-time }
+        steps_taken:
+          type: array
+          items:
+            type: object
+            properties:
+              step:          { type: integer }
+              escalated_at:  { type: string, format: date-time }
+              notes:         { type: string }
+
+    ClosureChecklist:
+      type: object
+      properties:
+        trade_id:             { type: string, format: uuid }
+        waterfall_confirmed:  { type: boolean }
+        trr_received:         { type: boolean }
+        ccc_received:         { type: boolean }
+        buyer_perf_recorded:  { type: boolean }
+        trader_rec_updated:   { type: boolean }
+        fp_report_sent:       { type: boolean }
+        record_locked:        { type: boolean }
+        completed_count:      { type: integer }
+        can_lock:             { type: boolean }
+        locked_at:            { type: string, format: date-time, nullable: true }
+
+    TradeDocument:
+      type: object
+      properties:
+        id:          { type: string, format: uuid }
+        trade_id:    { type: string, format: uuid }
+        doc_type:    { type: string }
+        name:        { type: string }
+        status:      { type: string }
+        size_bytes:  { type: integer, nullable: true }
+        is_locked:   { type: boolean }
+        uploaded_by: { type: string, format: uuid }
+        uploaded_at: { type: string, format: date-time }
+        expires_at:  { type: string, format: date-time }
+
+    PortfolioMetrics:
+      type: object
+      properties:
+        total_deals:                { type: integer }
+        total_contract_value_usd:   { type: number }
+        total_facility_usd:         { type: number }
+        avg_risk_score:             { type: number }
+        default_rate_pct:           { type: number }
+        avg_trade_cycle_days:       { type: number }
+        farmer_sla_compliance_pct:  { type: number }
+        weight_reconciliation_pct:  { type: number }
+        fp_return_min_pct:          { type: number }
+        fp_return_max_pct:          { type: number }
+        farmers_reached:            { type: integer }
+        total_volume_mt:            { type: number }
+        countries_active:           { type: integer }
+        stage_distribution:
+          type: object
+          additionalProperties: { type: integer }
+        commodity_breakdown:
+          type: object
+          additionalProperties: { type: number }
+
+    BuyerProfile:
+      type: object
+      properties:
+        id:                    { type: string, format: uuid }
+        name:                  { type: string }
+        country:               { type: string }
+        sanctions_clear:       { type: boolean }
+        trades_completed:      { type: integer }
+        trades_on_time:        { type: integer }
+        disputes:              { type: integer }
+        creditworthiness_score:{ type: integer, nullable: true }
+        payment_record:        { type: string }
+
+    FinancePartnerCRM:
+      type: object
+      properties:
+        org_id:            { type: string, format: uuid }
+        name:              { type: string }
+        contact_name:      { type: string }
+        contact_email:     { type: string }
+        trades_total:      { type: integer }
+        trades_approved:   { type: integer }
+        approval_rate_pct: { type: number }
+        capital_deployed_usd: { type: number }
+        capital_returned_usd: { type: number }
+        avg_review_days:   { type: number, nullable: true }
+        health:            { type: string, enum: [green, amber, red] }
+        next_interaction:  { type: string, format: date, nullable: true }
+        onboarding_step:   { type: integer }
+        onboarding_done:   { type: boolean }
+
+    RiskHistoryPoint:
+      type: object
+      properties:
+        trade_id:   { type: string, format: uuid }
+        trade_ref:  { type: string }
+        score:      { type: integer }
+        label:      { type: string }
+        scored_at:  { type: string, format: date-time }
+
+    Notification:
+      type: object
+      properties:
+        id:         { type: string, format: uuid }
+        trade_id:   { type: string, format: uuid, nullable: true }
+        channel:    { type: string }
+        status:     { type: string }
+        subject:    { type: string, nullable: true }
+        body:       { type: string }
+        sent_at:    { type: string, format: date-time, nullable: true }
+        read_at:    { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    TradeVaultEvent:
+      type: object
+      required: [event_type, trade_ref, payload, signature]
+      properties:
+        event_type:
+          type: string
+          enum:
+            - escrow.funded
+            - payment.confirmed
+            - waterfall.settled
+            - payment.failed
+        trade_ref:  { type: string }
+        payload:    { type: object }
+        signature:  { type: string, description: "HMAC-SHA256 of payload" }
+        occurred_at:{ type: string, format: date-time }
+
+    TrackGuardEvent:
+      type: object
+      required: [event_type, trade_ref, payload, signature]
+      properties:
+        event_type:
+          type: string
+          enum:
+            - shipment.created
+            - shipment.in_transit
+            - shipment.alert
+            - shipment.delivered
+            - ccc.issued
+        trade_ref:  { type: string }
+        payload:    { type: object }
+        signature:  { type: string }
+        occurred_at:{ type: string, format: date-time }

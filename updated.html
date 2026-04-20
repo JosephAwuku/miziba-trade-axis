@@ -1,0 +1,1742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>TradeAxis v2.0 — Miziba Platform</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --cr:#8B0000;--cr-l:#C41E3A;--cr-bg:#FFF0F0;--cr-b:#FFCDD2;
+  --nv:#0D1F3C;--nv-m:#1B2B4D;--go:#C9943A;
+  --su:#16A34A;--su-bg:#F0FDF4;--su-b:#BBF7D0;
+  --wa:#D97706;--wa-bg:#FFFBEB;--wa-b:#FDE68A;
+  --da:#DC2626;--da-bg:#FEF2F2;--da-b:#FECACA;
+  --in:#2563EB;--in-bg:#EFF6FF;--in-b:#BFDBFE;
+  --pu:#7C3AED;--pu-bg:#F5F3FF;--pu-b:#DDD6FE;
+  --bg:#F4F5F7;--text:#111827;--text2:#4B5563;--text3:#9CA3AF;
+  --bdr:#E2E5EA;--bdr2:#C5CAD5;
+  --font:'DM Sans',system-ui,sans-serif;
+  --mono:'JetBrains Mono',monospace;--sb-w:210px;
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:13px;line-height:1.5}
+.mono{font-family:var(--mono)}
+.app{display:flex;height:100vh;overflow:hidden;position:relative}
+.sb{width:var(--sb-w);background:var(--nv);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;transition:transform .25s ease;z-index:100}
+.sb-brand{padding:15px 14px 12px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px}
+.logo-box{width:30px;height:30px;border-radius:7px;background:linear-gradient(135deg,var(--cr),var(--cr-l));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;flex-shrink:0}
+.sb-title{color:#fff;font-size:14px;font-weight:600}.sb-ver{color:#64748B;font-size:9px;letter-spacing:.06em;margin-top:1px}
+.sb-nav{flex:1;padding:8px 6px;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+.nb{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:7px;border:1px solid transparent;background:transparent;color:#94A3B8;font-size:12px;cursor:pointer;width:100%;text-align:left;transition:all .12s;font-family:var(--font)}
+.nb:hover{background:rgba(255,255,255,.06);color:#CBD5E1}
+.nb.on{background:rgba(139,0,0,.22);color:#FCA5A5;border-color:rgba(139,0,0,.35)}
+.nb-icon{font-size:14px;width:16px;text-align:center;flex-shrink:0}
+.sb-snap{padding:10px 12px;border-top:1px solid rgba(255,255,255,.06)}
+.snap-row{display:flex;justify-content:space-between;margin-bottom:4px;font-size:10px;color:#94A3B8}
+.sb-user{padding:10px 12px;border-top:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:9px}
+.av{width:26px;height:26px;border-radius:50%;background:var(--cr);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;flex-shrink:0}
+.logout-btn{margin-left:auto;background:none;border:none;color:#475569;cursor:pointer;font-size:14px;padding:3px}
+.sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:90}
+.sb-close{display:none;position:absolute;top:14px;right:12px;background:none;border:none;color:#94A3B8;font-size:20px;cursor:pointer;line-height:1;padding:4px}
+.main{flex:1;overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.topbar{background:#fff;border-bottom:1px solid var(--bdr);padding:11px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:10px}
+.topbar-left{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.ham-btn{display:none;background:none;border:1px solid var(--bdr);border-radius:6px;cursor:pointer;padding:6px 8px;font-size:15px;line-height:1;flex-shrink:0;color:var(--text)}
+.content{flex:1;overflow:auto;padding:18px;-webkit-overflow-scrolling:touch}
+.card{background:#fff;border-radius:10px;border:1px solid var(--bdr)}
+.card-head{padding:12px 16px;border-bottom:1px solid var(--bdr);font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:99px;font-size:10px;font-weight:600;white-space:nowrap}
+.btn{border:none;cursor:pointer;font-family:var(--font);font-size:12px;font-weight:500;border-radius:7px;padding:8px 15px;transition:all .12s;white-space:nowrap}
+.btn:hover{opacity:.88;transform:translateY(-1px)}.btn:active{transform:translateY(0)}
+.btn-primary{background:var(--cr);color:#fff}.btn-secondary{background:#fff;color:var(--text);border:1px solid var(--bdr)}
+.btn-success{background:var(--su);color:#fff}.btn-danger{background:var(--da);color:#fff}
+.btn-warning{background:var(--wa-bg);color:var(--wa);border:1px solid var(--wa-b)}
+.btn-navy{background:#1B2B4D;color:#fff}.btn-sm{padding:5px 10px;font-size:11px;border-radius:5px}
+.btn-ghost{background:none;color:var(--text2);border:1px solid var(--bdr)}
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tbl{width:100%;border-collapse:collapse;font-size:12px;min-width:500px}
+.tbl th{padding:8px 12px;text-align:left;color:var(--text2);font-weight:600;font-size:10px;letter-spacing:.04em;border-bottom:1px solid var(--bdr);background:#F8FAFC;white-space:nowrap}
+.tbl td{padding:9px 12px;border-bottom:1px solid var(--bdr);color:var(--text)}
+.tbl tr:hover td{background:#F8FAFC}
+.pbar{height:6px;background:var(--bdr);border-radius:3px;overflow:hidden}
+.pbar-fill{height:100%;border-radius:3px;transition:width .4s}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.g5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.metric{background:#fff;border-radius:8px;border:1px solid var(--bdr);padding:14px}
+.metric-label{font-size:9px;color:var(--text3);font-weight:600;letter-spacing:.05em;margin-bottom:5px}
+.metric-val{font-size:20px;font-weight:600;font-family:var(--mono)}
+.kanban{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;align-items:flex-start}
+.k-col{min-width:162px;flex:0 0 162px}
+.k-head{padding:7px 9px;border-radius:6px 6px 0 0;display:flex;align-items:center;justify-content:space-between}
+.k-body{min-height:80px;padding:5px;border-radius:0 0 6px 6px}
+.k-card{background:#fff;border:1px solid var(--bdr);border-radius:7px;padding:9px;margin-bottom:5px;cursor:pointer;transition:all .12s}
+.k-card:hover{border-color:var(--cr);box-shadow:0 3px 10px rgba(139,0,0,.1)}
+.tabs{display:flex;border-bottom:1px solid var(--bdr);margin-bottom:16px;overflow-x:auto}
+.tabs::-webkit-scrollbar{height:0}
+.tab{padding:9px 14px;border:none;background:none;cursor:pointer;font-size:12px;font-weight:500;color:var(--text3);border-bottom:2px solid transparent;margin-bottom:-1px;font-family:var(--font);white-space:nowrap;flex-shrink:0;transition:all .12s}
+.tab.on{color:var(--cr);border-bottom-color:var(--cr)}
+.chk-item{display:flex;gap:11px;padding:13px;border-radius:8px;border:1px solid var(--bdr);background:#fff;margin-bottom:9px}
+.chk-box{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--bdr2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;margin-top:2px;transition:all .15s}
+.chk-box.on{background:var(--su);border-color:var(--su)}
+.risk-tier{display:flex;gap:9px;padding:6px 8px;border-radius:6px;cursor:pointer;margin-bottom:4px;border:1px solid transparent;align-items:flex-start;transition:all .1s}
+.risk-tier:hover{background:#F8FAFC}.risk-tier.sel{background:var(--in-bg);border-color:var(--in-b)}
+.wf-tier{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:7px;margin-bottom:6px;background:rgba(255,255,255,.06)}
+.tl-dot{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;border:2px solid #fff}
+.step-wrap{display:flex;align-items:center;overflow-x:auto;padding-bottom:4px}
+.step-item{display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0}
+.step-dot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.step-label{font-size:9px;font-weight:600;text-align:center;width:60px;line-height:1.3}
+.step-line{height:2px;flex:1;min-width:16px;margin-bottom:18px;flex-shrink:0}
+.login-page{min-height:100vh;background:linear-gradient(135deg,var(--nv-m),var(--nv));display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
+.login-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:26px;width:100%;max-width:420px}
+.role-btn{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border-radius:9px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;cursor:pointer;margin-bottom:8px;transition:all .12s;text-align:left;font-family:var(--font)}
+.role-btn:hover{background:rgba(255,255,255,.1);transform:translateY(-1px)}
+.alert{padding:11px 14px;border-radius:8px;font-size:12px;margin-bottom:12px;line-height:1.5}
+.alert-info{background:var(--in-bg);border:1px solid var(--in-b);color:var(--in)}
+.alert-success{background:var(--su-bg);border:1px solid var(--su-b);color:var(--su)}
+.alert-warning{background:var(--wa-bg);border:1px solid var(--wa-b);color:var(--wa)}
+.alert-danger{background:var(--da-bg);border:1px solid var(--da-b);color:var(--da)}
+.alert-gold{background:#FFFBEB;border:1px solid #FDE68A;color:#92400E}
+input,select,textarea{font-family:var(--font);font-size:12px;border:1px solid var(--bdr);border-radius:6px;padding:8px 10px;width:100%;outline:none;color:var(--text);background:#fff;transition:border-color .12s}
+input:focus,select:focus,textarea:focus{border-color:var(--cr)}
+label{display:block;font-size:10px;font-weight:600;color:var(--text2);letter-spacing:.03em;margin-bottom:4px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto}
+.modal{background:#fff;border-radius:12px;width:100%;max-width:800px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.modal-head{padding:16px 20px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1;flex-wrap:wrap;gap:10px}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--text3);padding:2px 6px;border-radius:4px;line-height:1}
+.modal-close:hover{background:#F3F4F6}
+.fdp-sec{border:1px solid var(--bdr);border-radius:8px;margin-bottom:10px;overflow:hidden}
+.fdp-sec-head{padding:11px 16px;background:#F8FAFC;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
+.fdp-sec-body{padding:14px 16px}
+.cl-item{display:flex;gap:12px;padding:13px;border:1px solid var(--bdr);border-radius:8px;margin-bottom:9px;background:#fff}
+.cl-box{width:22px;height:22px;border-radius:5px;border:1.5px solid var(--bdr2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all .15s}
+.cl-box.on{background:var(--su);border-color:var(--su)}
+.np-step{display:flex;gap:12px;padding:12px;border-radius:7px;margin-bottom:8px;border:1px solid var(--bdr);align-items:flex-start}
+.crm-card{background:#fff;border:1px solid var(--bdr);border-radius:8px;padding:16px;margin-bottom:12px}
+#notif{position:fixed;top:14px;right:14px;z-index:9999;padding:10px 16px;border-radius:8px;font-size:12px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.14);pointer-events:none;opacity:0;transition:opacity .2s;max-width:calc(100vw - 28px)}
+#notif.show{opacity:1}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:3px}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeIn .22s ease}
+@media(max-width:1024px){:root{--sb-w:188px}.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g5{grid-template-columns:repeat(3,minmax(0,1fr))}.content{padding:14px}.sb-snap{display:none}}
+@media(max-width:768px){html,body{overflow:auto}.app{height:auto;min-height:100dvh;flex-direction:column;overflow:visible}.sb{position:fixed;top:0;left:0;height:100%;transform:translateX(-100%);box-shadow:4px 0 20px rgba(0,0,0,.3);z-index:200}.sb.open{transform:translateX(0)}.sb-overlay{display:block}.sb-overlay.show{opacity:1;pointer-events:all}.sb-overlay:not(.show){opacity:0;pointer-events:none}.sb-close{display:block}.ham-btn{display:flex}.main{min-height:100dvh;height:auto;overflow:visible}.topbar{padding:10px 14px;position:sticky;top:0;z-index:50}.content{flex:none;padding:12px;overflow:visible;height:auto}.g2,.g3{grid-template-columns:1fr;gap:10px}.g4{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.g5{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.modal{border-radius:10px 10px 0 0;max-height:95vh}.modal-overlay{align-items:flex-end;padding:0}}
+@media(max-width:420px){.g4{grid-template-columns:1fr;gap:8px}.content{padding:10px}}
+</style>
+</head>
+<body>
+<div id="notif"></div>
+<div id="sbo" class="sb-overlay" onclick="closeSb()"></div>
+<div id="app"></div>
+<script>
+
+const S={
+  role:null,view:'pipeline',deal:null,tab:'overview',
+  valState:{},
+  rscores:{buyer_risk:15,trader_risk:18,commodity_price_risk:14,sourcing_supply_risk:11,logistics_delivery_risk:10},
+  decisions:{},fdpModal:null,fdpOpenSec:{},
+  closureState:{},declineState:{},ceoEscalation:{},npStep:{},
+  fpSec:'inbox',trSec:'status',trStep:1,cfoOk:{},fpOnbStep:1
+};
+
+const TRADES=[
+  {id:'BR-2026-0047',tr:'Wenchi Cashew Alliance',tid:'TR-0031',cmd:'cashew',vol:150,gr:'A',buyer:'Cashew Coast GmbH',bc:'Germany',price:1420,cv:213000,pc:157000,eq:54950,ff:102050,dp:'Tema Port, Ghana',dl:'2026-07-01',pt:30,stage:'SUBMITTED',kyc:'PENDING',risk:null,off:'Muazu Abubakar',dt:'2026-04-10',escrow:null,ship:null,bpay:null,dep:0,val:{b:false,p:false,s:false,k:false,r:false},rb:null,fp:null},
+  {id:'BR-2026-0046',tr:'Techiman Grain Traders',tid:'TR-0019',cmd:'sorghum',vol:180,gr:'B',buyer:'West African Breweries',bc:'Nigeria',price:340,cv:61200,pc:47000,eq:17860,ff:29140,dp:'Lagos Port, Nigeria',dl:'2026-06-20',pt:30,stage:'UNDER_VALIDATION',kyc:'FLAGGED',risk:null,off:'Muazu Abubakar',dt:'2026-04-05',escrow:null,ship:null,bpay:null,dep:0,val:{b:true,p:true,s:false,k:false,r:false},rb:null,fp:null},
+  {id:'BR-2026-0044',tr:'Akosua Commodities Ltd',tid:'TR-0012',cmd:'cashew',vol:120,gr:'A',buyer:'Olam International',bc:'Singapore',price:1450,cv:174000,pc:126000,eq:44100,ff:81900,dp:'Tema Port, Ghana',dl:'2026-06-15',pt:30,stage:'VALIDATED',kyc:'VERIFIED',risk:78,off:'Muazu Abubakar',dt:'2026-03-22',escrow:null,ship:null,bpay:null,dep:0,val:{b:true,p:true,s:true,k:true,r:true},rb:{buyer_risk:18,trader_risk:18,commodity_price_risk:20,sourcing_supply_risk:11,logistics_delivery_risk:11},fp:null},
+  {id:'BR-2026-0043',tr:'Bolgatanga Shea Collective',tid:'TR-0024',cmd:'shea',vol:65,gr:'A',buyer:"L'Oreal Natural Ingredients",bc:'France',price:950,cv:61750,pc:46000,eq:16100,ff:29900,dp:'Tema Port, Ghana',dl:'2026-06-10',pt:30,stage:'FINANCE_REVIEW',kyc:'VERIFIED',risk:76,off:'Muazu Abubakar',dt:'2026-03-18',escrow:null,ship:null,bpay:null,dep:0,val:{b:true,p:true,s:true,k:true,r:true},rb:{buyer_risk:15,trader_risk:18,commodity_price_risk:20,sourcing_supply_risk:15,logistics_delivery_risk:8},fp:'Ecobank DFI Fund'},
+  {id:'BR-2026-0041',tr:'NorthStar Shea Export',tid:'TR-0008',cmd:'shea',vol:80,gr:'B',buyer:'IOI Loders Croklaan',bc:'Netherlands',price:890,cv:71200,pc:58000,eq:23200,ff:34800,dp:'Takoradi Port, Ghana',dl:'2026-05-30',pt:30,stage:'FUNDED',kyc:'VERIFIED',risk:82,off:'Muazu Abubakar',dt:'2026-02-28',escrow:'ESC-TV-2026-0041',ship:null,bpay:null,dep:0,val:{b:true,p:true,s:true,k:true,r:true},rb:{buyer_risk:25,trader_risk:25,commodity_price_risk:14,sourcing_supply_risk:11,logistics_delivery_risk:7},fp:'Ecobank DFI Fund'},
+  {id:'BR-2026-0038',tr:'Harmattan Sesame Co.',tid:'TR-0021',cmd:'sesame',vol:55,gr:'A',buyer:'Wilmar International',bc:'Singapore',price:1200,cv:66000,pc:48000,eq:16800,ff:31200,dp:'Tema Port, Ghana',dl:'2026-05-10',pt:30,stage:'PROCURING',kyc:'VERIFIED',risk:74,off:'Muazu Abubakar',dt:'2026-02-12',escrow:'ESC-TV-2026-0038',ship:null,bpay:null,dep:68,vp:37.4,val:{b:true,p:true,s:true,k:true,r:true},rb:{buyer_risk:15,trader_risk:18,commodity_price_risk:20,sourcing_supply_risk:11,logistics_delivery_risk:10},fp:'Ghana Agric Dev Bank',eudr:94,gradeA:71,gradeB:22,gradeC:7},
+  {id:'BR-2026-0033',tr:'Bole Sorghum Trading',tid:'TR-0015',cmd:'sorghum',vol:200,gr:'B',buyer:'Savannah Feeds Ltd',bc:'Nigeria',price:320,cv:64000,pc:50000,eq:20000,ff:30000,dp:'Kumasi Processing Plant',dl:'2026-04-30',pt:30,stage:'DELIVERED',kyc:'VERIFIED',risk:81,off:'Muazu Abubakar',dt:'2026-01-20',escrow:'ESC-TV-2026-0033',ship:'TG-SHP-2026-0033',bpay:null,dep:100,vp:200,val:{b:true,p:true,s:true,k:true,r:true},rb:{buyer_risk:18,trader_risk:25,commodity_price_risk:14,sourcing_supply_risk:15,logistics_delivery_risk:9},fp:'Ecobank DFI Fund',eudr:97,deliveredWt:198.4,wvariance:0.8},
+  {id:'BR-2026-0029',tr:'Kintampo Soya Merchants',tid:'TR-0007',cmd:'soya',vol:90,gr:'A',buyer:'Elevate Foods Ghana',bc:'Ghana',price:540,cv:48600,pc:38000,eq:13300,ff:24700,dp:'Techiman Aggregation Centre',dl:'2026-04-05',pt:30,stage:'SETTLED',kyc:'VERIFIED',risk:88,off:'Muazu Abubakar',dt:'2025-12-10',escrow:'ESC-TV-2026-0029',ship:'TG-SHP-2026-0029',bpay:48600,bpd:'2026-03-31',dep:100,vp:90,val:{b:true,p:true,s:true,k:true,r:true},rb:{buyer_risk:25,trader_risk:25,commodity_price_risk:20,sourcing_supply_risk:11,logistics_delivery_risk:7},fp:'Ghana Agric Dev Bank',mf:608,fpr:25740,tm:10260},
+];
+
+const ST={
+  SUBMITTED:{l:'Submitted',c:'#2563EB',bg:'#EFF6FF',br:'#BFDBFE'},
+  UNDER_VALIDATION:{l:'Under Validation',c:'#B45309',bg:'#FFFBEB',br:'#FDE68A'},
+  VALIDATED:{l:'Validated',c:'#15803D',bg:'#F0FDF4',br:'#BBF7D0'},
+  FINANCE_REVIEW:{l:'Finance Review',c:'#C2410C',bg:'#FFF7ED',br:'#FED7AA'},
+  FUNDED:{l:'Funded',c:'#7C3AED',bg:'#F5F3FF',br:'#DDD6FE'},
+  PROCURING:{l:'Procuring',c:'#0369A1',bg:'#F0F9FF',br:'#BAE6FD'},
+  DELIVERED:{l:'Delivered',c:'#16A34A',bg:'#F0FDF4',br:'#BBF7D0'},
+  SETTLED:{l:'Settled',c:'#059669',bg:'#ECFDF5',br:'#A7F3D0'},
+  CLOSED:{l:'Closed',c:'#374151',bg:'#F9FAFB',br:'#D1D5DB'}
+};
+
+const CMD={
+  cashew:{c:'#D97706',i:'\u25CF',l:'Cashew'},
+  shea:{c:'#7C3AED',i:'\u25C6',l:'Shea'},
+  sesame:{c:'#DB2777',i:'\u25B2',l:'Sesame'},
+  sorghum:{c:'#059669',i:'\u25A0',l:'Sorghum'},
+  soya:{c:'#2563EB',i:'\u25C7',l:'Soya'}
+};
+
+const BATCH=[
+  {id:'B-038-01',fid:'F-7821',tp:'Kintampo North',wt:1840,ghs:9752,usd:642,st:'CONFIRMED',ts:'2026-03-28 07:14'},
+  {id:'B-038-02',fid:'F-4493',tp:'Techiman Central',wt:2100,ghs:11130,usd:733,st:'CONFIRMED',ts:'2026-03-28 09:41'},
+  {id:'B-038-03',fid:'F-9012',tp:'Kintampo South',wt:1560,ghs:8268,usd:544,st:'CONFIRMED',ts:'2026-03-29 08:05'},
+  {id:'B-038-04',fid:'F-3341',tp:'Wenchi Junction',wt:2240,ghs:11872,usd:782,st:'CONFIRMED',ts:'2026-03-29 11:22'},
+  {id:'B-038-05',fid:'F-6678',tp:'Kintampo North',wt:1980,ghs:10494,usd:691,st:'CONFIRMED',ts:'2026-03-30 07:58'},
+  {id:'B-038-06',fid:'F-8823',tp:'Techiman Central',wt:2300,ghs:12190,usd:803,st:'CONFIRMED',ts:'2026-03-30 10:34'},
+  {id:'B-038-07',fid:'F-2210',tp:'Wenchi Junction',wt:1720,ghs:9116,usd:600,st:'CONFIRMED',ts:'2026-03-31 08:12'},
+  {id:'B-038-08',fid:'F-5589',tp:'Kintampo South',wt:2050,ghs:10865,usd:716,st:'CONFIRMED',ts:'2026-03-31 14:03'},
+  {id:'B-038-09',fid:'F-7104',tp:'Techiman Central',wt:1880,ghs:9964,usd:656,st:'PENDING',ts:'2026-04-01 09:00'},
+];
+
+const FPC=[
+  {id:'FP-001',name:'Ecobank Ghana DFI Fund',contact:'Kwame Asante-Boateng',email:'k.asante@ecobank.com',trades:5,approved:4,capital:268500,returned:168000,avgReview:3.2,health:'green',nextCall:'2026-04-18'},
+  {id:'FP-002',name:'Ghana Agric Dev Bank',contact:'Abena Mensah-Twum',email:'a.mensah@agribank.gh',trades:3,approved:3,capital:82200,returned:82200,avgReview:4.1,health:'green',nextCall:'2026-04-22'},
+  {id:'FP-003',name:'Oikocredit West Africa',contact:'Emmanuel Doku',email:'e.doku@oikocredit.org',trades:0,approved:0,capital:0,returned:0,avgReview:null,health:'amber',nextCall:'2026-04-15',onboarding:true},
+];
+
+// Helpers
+const usd = n => n==null ? '—' : '$'+Number(n).toLocaleString('en-US',{maximumFractionDigits:0});
+const mt  = n => n==null ? '—' : n+' MT';
+function sbdg(s){
+  const c=ST[s]||{l:s,c:'#6B7280',bg:'#F9FAFB',br:'#E5E7EB'};
+  return '<span class="badge" style="background:'+c.bg+';color:'+c.c+';border:1px solid '+c.br+'">'+c.l+'</span>';
+}
+function rbdg(r){
+  if(r==null) return '<span class="badge" style="background:#F9FAFB;color:#9CA3AF;border:1px solid #E5E7EB">Pending</span>';
+  const c=r>=75?'#16A34A':r>=55?'#D97706':'#DC2626';
+  const bg=r>=75?'#F0FDF4':r>=55?'#FFFBEB':'#FEF2F2';
+  const br=r>=75?'#BBF7D0':r>=55?'#FDE68A':'#FECACA';
+  return '<span class="badge mono" style="background:'+bg+';color:'+c+';border:1px solid '+br+'">'+r+'/100</span>';
+}
+function kbdg(k){
+  const m={VERIFIED:{bg:'#F0FDF4',c:'#16A34A',b:'#BBF7D0'},PENDING:{bg:'#FFFBEB',c:'#D97706',b:'#FDE68A'},FLAGGED:{bg:'#FEF2F2',c:'#DC2626',b:'#FECACA'}};
+  const x=m[k]||m.PENDING;
+  return '<span class="badge" style="background:'+x.bg+';color:'+x.c+';border:1px solid '+x.b+'">'+k+'</span>';
+}
+function row(l,v,mono,col){
+  col=col||'#111827';
+  return '<div style="display:flex;padding:7px 0;border-bottom:1px solid #F3F4F6;flex-wrap:wrap;gap:4px"><span style="width:185px;flex-shrink:0;font-size:10px;color:#6B7280;font-weight:600">'+l+'</span><span class="'+(mono?'mono':'')+'" style="font-size:12px;color:'+col+'">'+v+'</span></div>';
+}
+
+// Sidebar
+function openSb(){const s=document.getElementById('sb'),o=document.getElementById('sbo');if(s)s.classList.add('open');if(o)o.classList.add('show');}
+function closeSb(){const s=document.getElementById('sb'),o=document.getElementById('sbo');if(s)s.classList.remove('open');if(o)o.classList.remove('show');}
+
+// Notify
+let _nt;
+function notify(msg,type){
+  type=type||'success';
+  const el=document.getElementById('notif');
+  const m={success:['#F0FDF4','#16A34A','#BBF7D0','✓'],error:['#FEF2F2','#DC2626','#FECACA','⚠'],warning:['#FFFBEB','#D97706','#FDE68A','⚠'],info:['#EFF6FF','#2563EB','#BFDBFE','ℹ']};
+  const c=m[type]||m.success;
+  el.style.cssText='position:fixed;top:14px;right:14px;z-index:9999;padding:10px 16px;border-radius:8px;font-size:12px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.14);pointer-events:none;max-width:calc(100vw - 28px);background:'+c[0]+';color:'+c[1]+';border:1px solid '+c[2];
+  el.textContent=c[3]+' '+msg;
+  el.classList.add('show');
+  clearTimeout(_nt);_nt=setTimeout(function(){el.classList.remove('show');},3500);
+}
+
+// Router
+function go(type,val){
+  if(type==='role'){S.role=val;S.view='pipeline';S.deal=null;S.tab='overview';S.fdpModal=null;}
+  else if(type==='view'){S.view=val;S.deal=null;S.tab='overview';S.fdpModal=null;closeSb();}
+  else if(type==='deal'){S.deal=val;S.tab='overview';S.fdpModal=null;closeSb();}
+  else if(type==='tab'){S.tab=val;S.fdpModal=null;}
+  else if(type==='fps'){S.fpSec=val;closeSb();}
+  else if(type==='trs'){S.trSec=val;closeSb();}
+  else if(type==='trstep')S.trStep=val;
+  render();window.scrollTo(0,0);
+}
+
+function toggleVal(id,key){
+  if(!S.valState[id]){const t=TRADES.find(function(x){return x.id===id;});S.valState[id]=Object.assign({},t.val);}
+  S.valState[id][key]=!S.valState[id][key];render();
+}
+function setRisk(k,v){S.rscores[k]=v;render();}
+function advanceStage(id){
+  const t=TRADES.find(function(x){return x.id===id;});if(!t)return;
+  const vs=S.valState[id]||t.val;
+  if(t.stage==='UNDER_VALIDATION'&&Object.values(vs).filter(Boolean).length<5){notify('Complete all 5 validation items first.','error');return;}
+  const keys=Object.keys(ST);const ci=keys.indexOf(t.stage);
+  if(ci<keys.length-1){t.stage=keys[ci+1];if(t.stage!=='SUBMITTED')t.kyc='VERIFIED';}
+  notify('Deal '+id+' advanced to '+ST[t.stage].l+'.');render();
+}
+function cfoConfirm(id){S.cfoOk[id]=true;notify('Payment confirmed for '+id+'. Waterfall instruction sent.');render();}
+function decide(id,dec){
+  S.decisions[id]=dec;
+  notify(dec==='approve'?'Facility approved for '+id+'. Escrow instruction sent.':'Facility declined. Deal Officer notified.',dec==='approve'?'success':'error');
+  render();
+}
+function declineDeal(id){
+  const el=document.getElementById('dr-'+id);
+  const reason=el?el.value:'';
+  if(!reason.trim()){notify('Enter a decline reason first.','error');return;}
+  S.declineState[id]={reason:reason,date:new Date().toLocaleDateString('en-GB'),officer:S.role};
+  notify('Deal '+id+' declined. Reason logged. Trader notified.','info');render();
+}
+function escalateCEO(id){
+  if(!S.ceoEscalation[id])S.ceoEscalation[id]={};
+  S.ceoEscalation[id].escalated=true;
+  notify('Deal '+id+' escalated to CEO for review.','warning');render();
+}
+function ceoDecide(id,dec){
+  if(!S.ceoEscalation[id])S.ceoEscalation[id]={};
+  S.ceoEscalation[id].decision=dec;
+  S.ceoEscalation[id].date=new Date().toLocaleDateString('en-GB');
+  notify(dec==='approve'?'CEO approved direct submission for '+id+'.':'CEO decision recorded for '+id+'.',dec==='approve'?'success':'warning');
+  render();
+}
+function openFDP(id){S.fdpModal=id;render();}
+function closeFDP(){S.fdpModal=null;render();}
+function toggleFDPSec(id,sec){
+  if(!S.fdpOpenSec[id])S.fdpOpenSec[id]={};
+  S.fdpOpenSec[id][sec]=!S.fdpOpenSec[id][sec];render();
+}
+function toggleClosure(id,key){
+  if(!S.closureState[id])S.closureState[id]={};
+  S.closureState[id][key]=!S.closureState[id][key];render();
+}
+function lockTrade(id){
+  const t=TRADES.find(function(x){return x.id===id;});if(!t)return;
+  const st=S.closureState[id]||{};
+  if(Object.keys(st).filter(function(k){return st[k];}).length<7){notify('Complete all 7 closure items first.','error');return;}
+  t.stage='CLOSED';notify('Trade '+id+' locked and closed. Record immutable.');render();
+}
+function npAction(id,step){
+  if(!S.npStep[id])S.npStep[id]=0;
+  S.npStep[id]=step;
+  const msgs={1:'Deal Officer contacted buyer.',3:'CEO informed finance partner of delay.',7:'Formal demand letter issued.',14:'Finance partner and CEO convened.',30:'Formal dispute opened.'};
+  notify(msgs[step]||'Action logged.','warning');render();
+}
+function submitApp(){notify('Application submitted. Trade ID BR-2026-0048 assigned.');}
+
+// Main render
+function render(){
+  const app=document.getElementById('app');
+  if(!S.role){app.innerHTML=renderLogin();return;}
+  if(S.role==='trader'){app.innerHTML=renderTrader();return;}
+  if(S.role==='fp'){app.innerHTML=renderFP();return;}
+  let out=renderInternal();
+  if(S.fdpModal)out+=renderFDP(S.fdpModal);
+  app.innerHTML=out;
+}
+
+// ── LOGIN ────────────────────────────────────────────────────────────────────
+function renderLogin(){
+  const roles=[
+    ['deal_officer','Deal Officer','Pipeline, validation & deal advancement','\u26A1'],
+    ['ceo','Head of Trade / CEO','Full dashboard + CEO approval authority','\u25C8'],
+    ['cfo','CFO','Settlement & waterfall authorisation','\u2B22'],
+    ['trader','Trader Portal','Application, tracking & document upload','\u25CF'],
+    ['fp','Finance Partner Portal','Deal review, facility approval & portfolio','\u25C6']
+  ];
+  return '<div class="login-page">'
+    +'<div style="width:100%;max-width:420px">'
+    +'<div style="text-align:center;margin-bottom:26px">'
+    +'<div style="width:46px;height:46px;border-radius:11px;background:linear-gradient(135deg,#8B0000,#C41E3A);display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:700;margin:0 auto 12px">T</div>'
+    +'<div style="color:#fff;font-size:24px;font-weight:600;letter-spacing:-.4px">TradeAxis</div>'
+    +'<div style="color:#475569;font-size:10px;letter-spacing:.08em;margin-top:3px">MIZIBA PLATFORM \u00B7 MODULE 4 \u00B7 v2.0</div>'
+    +'<div style="color:#334155;font-size:11px;margin-top:4px">Trade Finance Origination Platform</div>'
+    +'</div>'
+    +'<div class="login-card">'
+    +'<div style="color:#475569;font-size:10px;font-weight:700;letter-spacing:.08em;margin-bottom:12px">SELECT YOUR ROLE</div>'
+    +roles.map(function(r){
+      return '<div class="role-btn" onclick="go(\'role\',\''+r[0]+'\')">'
+        +'<span style="font-size:17px;width:22px;text-align:center;flex-shrink:0;opacity:.8">'+r[3]+'</span>'
+        +'<div style="flex:1"><div style="font-weight:600;font-size:13px">'+r[1]+'</div>'
+        +'<div style="font-size:11px;color:#64748B">'+r[2]+'</div></div>'
+        +'<span style="color:#475569;font-size:16px">\u203A</span>'
+        +'</div>';
+    }).join('')
+    +'</div>'
+    +'<div style="color:#334155;font-size:11px;margin-top:18px;text-align:center">Miziba Infrastructure Ltd \u00B7 Confidential \u00B7 2026</div>'
+    +'</div></div>';
+}
+
+// ── INTERNAL SHELL ───────────────────────────────────────────────────────────
+const INT_NAV=[
+  {id:'pipeline',i:'\u25A6',l:'Pipeline Kanban'},
+  {id:'monitor',i:'\u25CE',l:'Active Monitor'},
+  {id:'portfolio',i:'\u25C8',l:'Portfolio'},
+  {id:'risk_calc',i:'\u2B21',l:'Risk Calculator'},
+  {id:'buyers',i:'\u25CF',l:'Buyer Database'},
+  {id:'fp_crm',i:'\u25C6',l:'Finance Partner CRM'}
+];
+const CFO_NAV=[
+  {id:'pipeline',i:'\u25A6',l:'Pipeline'},
+  {id:'monitor',i:'\u25CE',l:'Monitor'},
+  {id:'settle',i:'\u2B22',l:'Settlement'},
+  {id:'portfolio',i:'\u25C8',l:'Portfolio'}
+];
+
+function renderInternal(){
+  const nav=S.role==='cfo'?CFO_NAV:INT_NAV;
+  const rl={deal_officer:'Deal Officer',ceo:'Head of Trade / CEO',cfo:'CFO'}[S.role]||S.role;
+  const tv=TRADES.reduce(function(a,t){return a+t.cv;},0);
+  const ac=TRADES.filter(function(t){return !['SETTLED','CLOSED'].includes(t.stage);}).length;
+  const rScores=TRADES.filter(function(t){return t.risk;});
+  const ar=rScores.length?Math.round(rScores.reduce(function(a,t){return a+t.risk;},0)/rScores.length):0;
+  const vl=S.deal?'Deal Detail':(nav.find(function(n){return n.id===S.view;})||{l:''}).l;
+  return '<div class="app">'
+    +'<div id="sb" class="sb">'
+    +'<button class="sb-close" onclick="closeSb()">\u2715</button>'
+    +'<div class="sb-brand"><div class="logo-box">T</div>'
+    +'<div><div class="sb-title">TradeAxis</div><div class="sb-ver">MODULE 4 \u00B7 v2.0</div></div></div>'
+    +'<nav class="sb-nav">'
+    +nav.map(function(n){
+      return '<button class="nb '+(S.view===n.id&&!S.deal?'on':'')+'" onclick="go(\'view\',\''+n.id+'\')">'
+        +'<span class="nb-icon">'+n.i+'</span>'+n.l+'</button>';
+    }).join('')
+    +'</nav>'
+    +'<div class="sb-snap">'
+    +'<div style="color:#64748B;font-size:9px;font-weight:600;letter-spacing:.08em;margin-bottom:6px">SNAPSHOT</div>'
+    +'<div class="snap-row"><span>Active deals</span><span class="mono" style="color:#CBD5E1">'+ac+'</span></div>'
+    +'<div class="snap-row"><span>Portfolio value</span><span class="mono" style="color:#CBD5E1">'+usd(tv)+'</span></div>'
+    +'<div class="snap-row"><span>Avg risk score</span><span class="mono" style="color:#CBD5E1">'+ar+'/100</span></div>'
+    +'<div class="snap-row"><span>Default rate</span><span class="mono" style="color:#16A34A">0%</span></div>'
+    +'</div>'
+    +'<div class="sb-user"><div class="av">MA</div>'
+    +'<div><div style="color:#E2E8F0;font-size:11px;font-weight:500">Muazu Abubakar</div>'
+    +'<div style="color:#64748B;font-size:10px">'+rl+'</div></div>'
+    +'<button class="logout-btn" onclick="go(\'role\',null)">\u23CF</button></div>'
+    +'</div>'
+    +'<div class="main">'
+    +'<div class="topbar">'
+    +'<div class="topbar-left"><button class="ham-btn" onclick="openSb()">\u2630</button>'
+    +'<div><div style="font-size:15px;font-weight:600">'+vl+'</div>'
+    +'<div style="font-size:10px;color:var(--text3);margin-top:1px">'+new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+'</div>'
+    +'</div></div>'
+    +'<div style="display:flex;gap:6px;align-items:center">'
+    +'<span class="badge" style="background:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0">\u25CF Live</span>'
+    +'<span class="badge" style="background:#EFF6FF;color:#2563EB;border:1px solid #BFDBFE">'+rl+'</span>'
+    +'</div></div>'
+    +'<div class="content fade-in">'
+    +(S.deal?renderDealDetail()
+      :S.view==='pipeline'?renderPipeline()
+      :S.view==='monitor'?renderMonitor()
+      :S.view==='portfolio'?renderPortfolio()
+      :S.view==='risk_calc'?renderRiskCalc()
+      :S.view==='buyers'?renderBuyers()
+      :S.view==='settle'?renderSettle()
+      :S.view==='fp_crm'?renderFPCRM()
+      :'')
+    +'</div></div></div>';
+}
+
+// ── PIPELINE ─────────────────────────────────────────────────────────────────
+function renderPipeline(){
+  const cols=Object.keys(ST).map(function(st){
+    const ds=TRADES.filter(function(t){return t.stage===st;});
+    const cfg=ST[st];
+    const sv=ds.reduce(function(a,t){return a+t.cv;},0);
+    let cards=ds.map(function(d){
+      const cm=CMD[d.cmd]||{c:'#888',i:'\u25CF'};
+      return '<div class="k-card" onclick="go(\'deal\',\''+d.id+'\')">'
+        +'<div style="display:flex;justify-content:space-between;margin-bottom:3px">'
+        +'<span class="mono" style="font-size:9px;color:#9CA3AF">'+d.id+'</span>'
+        +'<span class="badge" style="background:'+cm.c+'18;color:'+cm.c+';border:none;font-size:9px">'+cm.i+' '+d.cmd+'</span>'
+        +'</div>'
+        +'<div style="font-weight:600;font-size:11px;margin-bottom:2px">'+d.tr+'</div>'
+        +'<div style="font-size:10px;color:#6B7280;margin-bottom:5px">'+mt(d.vol)+' \u00B7 Gr.'+d.gr+'</div>'
+        +'<div style="display:flex;justify-content:space-between;align-items:center">'
+        +'<span class="mono" style="font-size:10px;font-weight:600">'+usd(d.cv)+'</span>'+rbdg(d.risk)+'</div>'
+        +(d.dep>0?'<div style="margin-top:5px"><div style="display:flex;justify-content:space-between;margin-bottom:2px">'
+          +'<span style="font-size:9px;color:#9CA3AF">Deployed</span>'
+          +'<span class="mono" style="font-size:9px;color:#2563EB">'+d.dep+'%</span></div>'
+          +'<div class="pbar"><div class="pbar-fill" style="width:'+d.dep+'%;background:'+(d.dep>80?'#D97706':'#16A34A')+'"></div></div></div>':'')
+        +'<div style="margin-top:5px">'+kbdg(d.kyc)+'</div>'
+        +'</div>';
+    }).join('');
+    return '<div class="k-col">'
+      +'<div class="k-head" style="background:'+cfg.bg+';border:1px solid '+cfg.br+'">'
+      +'<span style="font-size:9px;font-weight:700;color:'+cfg.c+'">'+cfg.l.toUpperCase()+'</span>'
+      +'<span class="badge" style="background:#fff;color:'+cfg.c+';font-size:9px;padding:1px 5px">'+ds.length+'</span></div>'
+      +'<div class="k-body" style="background:'+cfg.bg+'88;border:1px solid '+cfg.br+';border-top:none">'
+      +(sv>0?'<div style="font-size:9px;color:'+cfg.c+';text-align:center;padding:2px 0 3px;opacity:.7">'+usd(sv)+'</div>':'')
+      +cards
+      +(ds.length===0?'<div style="text-align:center;padding:14px 4px;color:#9CA3AF;font-size:10px">No deals</div>':'')
+      +'</div></div>';
+  }).join('');
+  return '<div style="margin-bottom:14px"><h2 style="font-size:16px;font-weight:700">Deal Pipeline</h2>'
+    +'<p style="font-size:11px;color:#6B7280;margin-top:2px">'+TRADES.length+' deals \u00B7 9 stages \u00B7 Sequential progression enforced</p></div>'
+    +'<div class="kanban">'+cols+'</div>';
+}
+
+// ── MONITOR ───────────────────────────────────────────────────────────────────
+function renderMonitor(){
+  const ac=TRADES.filter(function(t){return !['SETTLED','CLOSED'].includes(t.stage);});
+  const rows=ac.map(function(d){
+    const cm=CMD[d.cmd]||{c:'#888',i:'\u25CF'};
+    return '<tr>'
+      +'<td><span class="mono" style="font-weight:700;color:#8B0000">'+d.id+'</span></td>'
+      +'<td style="font-weight:500">'+d.tr+'</td>'
+      +'<td><span class="badge" style="background:'+cm.c+'15;color:'+cm.c+';border:none">'+cm.i+' '+d.cmd+'</span></td>'
+      +'<td class="mono">'+mt(d.vol)+'</td>'
+      +'<td class="mono">'+usd(d.cv)+'</td>'
+      +'<td class="mono">'+usd(d.ff)+'</td>'
+      +'<td>'+sbdg(d.stage)+'</td>'
+      +'<td>'+rbdg(d.risk)+'</td>'
+      +'<td>'+kbdg(d.kyc)+'</td>'
+      +'<td><button class="btn btn-primary btn-sm" onclick="go(\'deal\',\''+d.id+'\')">View \u2192</button></td>'
+      +'</tr>';
+  }).join('');
+  const tv=ac.reduce(function(a,t){return a+t.cv;},0);
+  const tf=ac.reduce(function(a,t){return a+t.ff;},0);
+  const rScores=ac.filter(function(t){return t.risk;});
+  const ar=rScores.length?Math.round(rScores.reduce(function(a,t){return a+t.risk;},0)/rScores.length):0;
+  return '<div style="margin-bottom:14px"><h2 style="font-size:16px;font-weight:700">Active Trade Monitor</h2>'
+    +'<p style="font-size:11px;color:#6B7280;margin-top:2px">'+ac.length+' active deals</p></div>'
+    +'<div class="g4" style="margin-bottom:16px">'
+    +'<div class="metric"><div class="metric-label">ACTIVE DEALS</div><div class="metric-val" style="color:#2563EB">'+ac.length+'</div></div>'
+    +'<div class="metric"><div class="metric-label">CONTRACT VALUE</div><div class="metric-val" style="color:#8B0000;font-size:16px">'+usd(tv)+'</div></div>'
+    +'<div class="metric"><div class="metric-label">TOTAL FACILITY</div><div class="metric-val" style="color:#7C3AED;font-size:16px">'+usd(tf)+'</div></div>'
+    +'<div class="metric"><div class="metric-label">AVG RISK SCORE</div><div class="metric-val" style="color:#16A34A">'+ar+'/100</div></div>'
+    +'</div>'
+    +'<div class="card" style="overflow:hidden"><div class="card-head">All Active Deals</div>'
+    +'<div class="tbl-wrap"><table class="tbl"><thead><tr>'
+    +'<th>TRADE ID</th><th>TRADER</th><th>COMMODITY</th><th>VOLUME</th>'
+    +'<th>CONTRACT</th><th>FACILITY</th><th>STAGE</th><th>RISK</th><th>KYC</th><th></th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+}
+
+// ── DEAL DETAIL ───────────────────────────────────────────────────────────────
+function renderDealDetail(){
+  const d=TRADES.find(function(t){return t.id===S.deal;});if(!d)return '';
+  if(!S.valState[d.id])S.valState[d.id]=Object.assign({},d.val);
+  const vs=S.valState[d.id];
+  const pc=Object.values(vs).filter(Boolean).length;
+  const ap=pc===5;
+  const cm=CMD[d.cmd]||{c:'#888',i:'\u25CF'};
+  const rb=d.rb;
+  const tr=rb?Object.values(rb).reduce(function(a,v){return a+v;},0):0;
+  const rc=tr>=75?'#16A34A':tr>=55?'#D97706':'#DC2626';
+  const ci=Object.keys(ST).indexOf(d.stage);
+  const canEdit=S.role==='deal_officer'||S.role==='ceo';
+  const dec=S.declineState[d.id];
+  const esc=S.ceoEscalation[d.id];
+  const showDeploy=['PROCURING','DELIVERED','FUNDED'].includes(d.stage);
+  const showLogistics=['PROCURING','DELIVERED'].includes(d.stage);
+  const showClosure=d.stage==='SETTLED';
+
+  const allTabs=[
+    {id:'overview',l:'Overview'},{id:'validation',l:'Checklist'},
+    {id:'risk',l:'Risk Score'},{id:'documents',l:'Documents'},{id:'timeline',l:'Timeline'},
+  ];
+  if(showDeploy)allTabs.push({id:'deployment',l:'Deployment'});
+  if(showLogistics)allTabs.push({id:'logistics',l:'Logistics'});
+  if(showClosure)allTabs.push({id:'closure',l:'Closure'});
+
+  const tabBar='<div class="tabs">'
+    +allTabs.map(function(t){
+      return '<button class="tab '+(S.tab===t.id?'on':'')+'" onclick="go(\'tab\',\''+t.id+'\')">'+t.l+'</button>';
+    }).join('')
+    +'</div>';
+
+  let tabContent='';
+  if(S.tab==='overview') tabContent=renderOverviewTab(d);
+  else if(S.tab==='validation') tabContent=renderValidationTab(d,vs,pc,ap,canEdit,dec,esc);
+  else if(S.tab==='risk') tabContent=renderRiskTab(d,rb,tr,rc);
+  else if(S.tab==='documents') tabContent=renderDocsTab(d);
+  else if(S.tab==='timeline') tabContent=renderTimelineTab(d,ci);
+  else if(S.tab==='deployment'&&showDeploy) tabContent=renderDeploymentTab(d);
+  else if(S.tab==='logistics'&&showLogistics) tabContent=renderLogisticsTab(d);
+  else if(S.tab==='closure'&&showClosure) tabContent=renderClosureTab(d);
+
+  return '<div class="fade-in">'
+    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">'
+    +'<button class="btn btn-secondary btn-sm" onclick="go(\'deal\',null)">\u2190 Back</button>'
+    +'<div style="flex:1;min-width:0">'
+    +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+    +'<span class="mono" style="font-size:16px;font-weight:700;color:#8B0000">'+d.id+'</span>'
+    +sbdg(d.stage)+' '+kbdg(d.kyc)+'</div>'
+    +'<div style="font-size:11px;color:#6B7280;margin-top:3px">'+d.tr+' \u00B7 '+d.buyer+' ('+d.bc+')'
+    +' \u00B7 <span class="badge" style="background:'+cm.c+'15;color:'+cm.c+';border:none">'+cm.i+' '+d.cmd+' Grade '+d.gr+'</span></div>'
+    +'</div>'
+    +(canEdit&&!['SETTLED','CLOSED'].includes(d.stage)
+      ?'<button class="btn btn-primary btn-sm" onclick="advanceStage(\''+d.id+'\')">Advance Stage \u2192</button>'
+      :'')
+    +'</div>'
+    +'<div class="g4" style="margin-bottom:16px">'
+    +'<div class="metric"><div class="metric-label">CONTRACT VALUE</div><div class="metric-val" style="font-size:16px">'+usd(d.cv)+'</div></div>'
+    +'<div class="metric"><div class="metric-label">FINANCE FACILITY</div><div class="metric-val" style="font-size:16px;color:#7C3AED">'+usd(d.ff)+'</div></div>'
+    +'<div class="metric"><div class="metric-label">TRADER EQUITY</div><div class="metric-val" style="font-size:16px;color:#2563EB">'+usd(d.eq)+'</div></div>'
+    +'<div class="metric"><div class="metric-label">RISK SCORE</div><div class="metric-val" style="color:'+rc+'">'+(d.risk?d.risk+'/100':'—')+'</div></div>'
+    +'</div>'
+    +tabBar+tabContent+'</div>';
+}
+
+function renderOverviewTab(d){
+  const fields=[
+    ['Trade ID',d.id,true],['Trader',d.tr,false],['Commodity',d.cmd+' Grade '+d.gr,false],
+    ['Volume',mt(d.vol),true],['Buyer',d.buyer+' ('+d.bc+')',false],
+    ['Price/MT','$'+d.price.toLocaleString()+'/MT',true],['Contract Value',usd(d.cv),true],
+    ['Procurement Cost',usd(d.pc),true],['Trader Equity',usd(d.eq)+' ('+Math.round(d.eq/d.pc*100)+'%)',true],
+    ['Finance Facility',usd(d.ff),true],['Delivery Point',d.dp,false],
+    ['Deadline',d.dl,true],['Payment Terms',d.pt+' days after delivery',false],
+    ['Finance Partner',d.fp||'Not yet assigned',false],['Escrow ID',d.escrow||'Not created',true],
+    ['Shipment ID',d.ship||'Not created',true],['Deal Officer',d.off,false],['Applied',d.dt,true]
+  ];
+  return '<div class="card" style="overflow:hidden">'
+    +fields.map(function(f,i){
+      return '<div style="display:flex;padding:8px 14px;border-bottom:1px solid #F3F4F6;background:'+(i%2===0?'#fff':'#FAFBFC')+';flex-wrap:wrap;gap:4px">'
+        +'<span style="width:160px;flex-shrink:0;font-size:10px;color:#6B7280;font-weight:600">'+f[0]+'</span>'
+        +'<span class="'+(f[2]?'mono':'')+'" style="font-size:12px;flex:1;min-width:0">'+f[1]+'</span>'
+        +'</div>';
+    }).join('')
+    +'</div>';
+}
+
+function renderValidationTab(d,vs,pc,ap,canEdit,dec,esc){
+  const VI=[
+    {k:'b',n:1,l:'Buyer Verification',desc:'Registered company confirmed. No sanctions (OFAC, EU, UN). Reference obtained for first-time buyers.',pass:'Registered company. No sanctions. Reference obtained.'},
+    {k:'p',n:2,l:'Price Reasonableness',desc:'Contract price within \u00B120% of current ICCO/World Bank/FAO commodity benchmark.',pass:'Price within \u00B120% of market benchmark.'},
+    {k:'s',n:3,l:'Sourcing Capacity',desc:'TradePoint network can source required volume within 70% of delivery deadline.',pass:'Network confirms target volume sourceable in timeline.'},
+    {k:'k',n:4,l:'Trader KYC & Track Record',desc:'KYC verified, equity feasible, no disputes. Returning trader: 0% default required.',pass:'KYC VERIFIED. 0% default rate. Capital proof confirmed.'},
+    {k:'r',n:5,l:'Regulatory Compliance',desc:'Export licence active. No outstanding sanctions, tax obligations or commodity disputes.',pass:'Export licence valid. No outstanding obligations.'},
+  ];
+  const items=VI.map(function(v){
+    return '<div class="chk-item">'
+      +'<div class="chk-box '+(vs[v.k]?'on':'')+'" onclick="'+(canEdit?'toggleVal(\''+d.id+'\',\''+v.k+'\')':'')+'">'
+      +(vs[v.k]?'<span style="color:#fff;font-size:11px;font-weight:700">\u2713</span>':'')
+      +'</div>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;flex-wrap:wrap">'
+      +'<span style="font-size:12px;font-weight:600">'+v.n+'. '+v.l+'</span>'
+      +'<span class="badge" style="background:'+(vs[v.k]?'#F0FDF4':'#F9FAFB')+';color:'+(vs[v.k]?'#16A34A':'#9CA3AF')+';border:1px solid '+(vs[v.k]?'#BBF7D0':'#E5E7EB')+'">'+(vs[v.k]?'PASS':'PENDING')+'</span>'
+      +'</div>'
+      +'<p style="font-size:11px;color:#6B7280;margin-bottom:5px">'+v.desc+'</p>'
+      +'<div style="background:#F8FAFC;border-radius:5px;padding:5px 8px;font-size:10px;color:#6B7280">'
+      +'<b style="color:#374151">Pass criteria:</b> '+v.pass+'</div>'
+      +'</div></div>';
+  }).join('');
+
+  let declineBlock='';
+  if(canEdit&&!dec){
+    declineBlock='<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'
+      +(ap?'<button class="btn btn-primary" onclick="openFDP(\''+d.id+'\')">Generate Finance Data Package \u2192</button>':'')
+      +(!ap&&pc>0?'<button class="btn btn-warning btn-sm" onclick="escalateCEO(\''+d.id+'\')">Refer to CEO</button>':'')
+      +(pc>0?'<button class="btn btn-danger btn-sm" onclick="document.getElementById(\'drf-'+d.id+'\').style.display=\'block\'">Decline Deal</button>':'')
+      +'</div>'
+      +'<div id="drf-'+d.id+'" style="display:none;margin-top:12px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:14px">'
+      +'<div style="font-size:12px;font-weight:700;color:#DC2626;margin-bottom:8px">Record Decline Reason</div>'
+      +'<label>Reason (logged to deal record and trader profile)</label>'
+      +'<textarea id="dr-'+d.id+'" rows="3" placeholder="e.g. Trader KYC flagged \u2014 director ID mismatch." style="margin-bottom:10px;font-size:12px"></textarea>'
+      +'<div style="display:flex;gap:8px">'
+      +'<button class="btn btn-danger btn-sm" onclick="declineDeal(\''+d.id+'\')">Confirm Decline</button>'
+      +'<button class="btn btn-secondary btn-sm" onclick="document.getElementById(\'drf-'+d.id+'\').style.display=\'none\'">Cancel</button>'
+      +'</div></div>';
+  }
+  if(dec){
+    declineBlock='<div class="alert alert-danger" style="margin-top:10px">'
+      +'<div style="font-weight:700;margin-bottom:4px">Deal Declined \u2014 '+dec.date+'</div>'
+      +'<p style="font-size:11px">'+dec.reason+'</p>'
+      +'<p style="font-size:10px;margin-top:5px;color:#6B7280">Trader notified. May reapply with corrected application.</p>'
+      +'</div>';
+  }
+  let ceoBlock='';
+  if(esc&&esc.escalated&&!esc.decision&&S.role==='ceo'){
+    ceoBlock='<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:14px;margin-top:12px">'
+      +'<div style="font-size:12px;font-weight:700;color:#92400E;margin-bottom:8px">CEO ESCALATION \u2014 Action Required</div>'
+      +'<p style="font-size:11px;color:#6B7280;margin-bottom:12px">Deal Officer escalated for CEO review before Finance Data Package can be sent to finance partner.</p>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+      +'<button class="btn btn-success btn-sm" onclick="ceoDecide(\''+d.id+'\',\'approve\')">\u2713 Approve Direct Submission</button>'
+      +'<button class="btn btn-warning btn-sm" onclick="ceoDecide(\''+d.id+'\',\'more-validation\')">Require More Validation</button>'
+      +'<button class="btn btn-danger btn-sm" onclick="ceoDecide(\''+d.id+'\',\'decline\')">Decline</button>'
+      +'</div></div>';
+  }
+  if(esc&&esc.decision){
+    const bc=esc.decision==='approve'?'alert-success':esc.decision==='decline'?'alert-danger':'alert-warning';
+    const bt=esc.decision==='approve'?'Approved direct submission.':esc.decision==='decline'?'Deal declined by CEO.':'Additional validation required.';
+    ceoBlock='<div class="alert '+bc+'" style="margin-top:10px"><b>CEO Decision ('+esc.date+'):</b> '+bt+'</div>';
+  }
+
+  return '<div class="g2" style="align-items:start">'
+    +'<div>'
+    +'<div class="card" style="padding:16px;margin-bottom:12px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+    +'<span style="font-size:12px;font-weight:600">Validation Progress</span>'
+    +'<span class="mono" style="font-weight:700;color:'+(ap?'#16A34A':'#D97706')+'">'+pc+'/5</span>'
+    +'</div>'
+    +'<div class="pbar" style="height:8px"><div class="pbar-fill" style="width:'+pc*20+'%;background:'+(ap?'#16A34A':'#D97706')+'"></div></div>'
+    +(ap?'<div class="alert alert-success" style="margin-top:10px;margin-bottom:0">\u2713 All items passed. Finance Data Package ready.</div>':'')
+    +'</div>'
+    +items+declineBlock+ceoBlock
+    +'</div>'
+    +'<div>'
+    +'<div class="card" style="padding:14px;margin-bottom:12px">'
+    +'<div style="font-size:10px;font-weight:700;color:#6B7280;letter-spacing:.07em;margin-bottom:12px">THREE NON-NEGOTIABLE RULES</div>'
+    +[['1','No finance partner approval = trade does NOT proceed.','#DC2626'],
+      ['2','Finance partner ALWAYS paid first in the waterfall.','#D97706'],
+      ['3','Miziba earns facilitation fees only \u2014 no trading risk.','#2563EB']
+    ].map(function(r){
+      return '<div style="display:flex;gap:9px;margin-bottom:11px">'
+        +'<div style="width:20px;height:20px;border-radius:4px;background:'+r[2]+';color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+r[0]+'</div>'
+        +'<p style="font-size:11px;color:#4B5563;line-height:1.5">'+r[1]+'</p>'
+        +'</div>';
+    }).join('')
+    +'</div>'
+    +'<div class="card" style="padding:14px">'
+    +'<div style="font-size:10px;font-weight:700;color:#6B7280;letter-spacing:.07em;margin-bottom:10px">VALIDATION OUTCOMES</div>'
+    +[['VALIDATED','All 5 items pass. Finance Data Package auto-generated.','#16A34A'],
+      ['DECLINED','Failed items logged. Trader notified with specific reasons.','#DC2626'],
+      ['REFERRED TO CEO','Notable flag. CEO reviews and approves or declines.','#D97706']
+    ].map(function(v){
+      return '<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #F3F4F6">'
+        +'<span class="badge" style="background:'+v[2]+'18;color:'+v[2]+';border:none;margin-bottom:4px">'+v[0]+'</span>'
+        +'<p style="font-size:10px;color:#6B7280;line-height:1.4">'+v[1]+'</p>'
+        +'</div>';
+    }).join('')
+    +'</div></div></div>';
+}
+
+function renderRiskTab(d,rb,tr,rc){
+  const DIM=[
+    {k:'buyer_risk',l:'Buyer Risk',mx:25},{k:'trader_risk',l:'Trader Risk',mx:25},
+    {k:'commodity_price_risk',l:'Commodity & Price',mx:20},
+    {k:'sourcing_supply_risk',l:'Sourcing & Supply',mx:15},
+    {k:'logistics_delivery_risk',l:'Logistics & Delivery',mx:15}
+  ];
+  let scoreBlock='<div class="card" style="padding:28px;text-align:center">'
+    +'<div style="font-size:28px;margin-bottom:10px">\u2B21</div>'
+    +'<div style="font-weight:600">Risk score not yet calculated</div>'
+    +'<p style="font-size:11px;color:#6B7280;margin-top:4px">Complete all 5 validation items first.</p>'
+    +'</div>';
+  if(rb){
+    const bars=DIM.map(function(dim){
+      const sc=rb[dim.k]||0;
+      const pct=Math.round((sc/dim.mx)*100);
+      const dc=pct>=70?'#16A34A':pct>=45?'#D97706':'#DC2626';
+      return '<div style="margin-bottom:12px">'
+        +'<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+        +'<span style="font-size:12px;font-weight:500">'+dim.l+'</span>'
+        +'<span class="mono" style="font-size:12px;font-weight:700;color:'+dc+'">'+sc+'/'+dim.mx+'</span>'
+        +'</div>'
+        +'<div class="pbar"><div class="pbar-fill" style="width:'+pct+'%;background:'+dc+'"></div></div>'
+        +'</div>';
+    }).join('');
+    scoreBlock='<div class="card" style="padding:18px;margin-bottom:14px">'
+      +'<div style="display:flex;align-items:center;gap:18px;margin-bottom:18px;flex-wrap:wrap">'
+      +'<div style="text-align:center">'
+      +'<div class="mono" style="font-size:40px;font-weight:700;color:'+rc+'">'+tr+'</div>'
+      +'<div style="font-size:11px;color:#6B7280">/100</div></div>'
+      +'<div style="font-size:13px;font-weight:600;color:'+rc+'">'+(tr>=75?'Low Risk':tr>=55?'Moderate Risk \u2014 CEO review':tr>=40?'Elevated Risk \u2014 CEO must approve':'High Risk \u2014 Decline')+'</div>'
+      +'</div>'+bars+'</div>';
+  }
+  let routingBlock='';
+  if(d.risk){
+    const r=d.risk;
+    const rc2=r>=75?'#16A34A':r>=55?'#D97706':r>=40?'#DC2626':'#991B1B';
+    const rbg=r>=75?'#F0FDF4':r>=55?'#FFFBEB':'#FEF2F2';
+    const rb2=r>=75?'#BBF7D0':r>=55?'#FDE68A':'#FECACA';
+    const rl=r>=75?'LOW RISK \u2014 Direct Submission':r>=55?'MODERATE RISK \u2014 CEO Review Required':r>=40?'ELEVATED RISK \u2014 CEO Must Approve':'HIGH RISK \u2014 Decline Deal';
+    const rd=r>=75?'Deal Officer may submit Finance Data Package directly without CEO sign-off. Standard 5-day review window.'
+      :r>=55?'Present to CEO before submitting. CEO can approve direct submission or require additional validation.'
+      :r>=40?'CEO must approve. Additional due diligence: buyer verification, equity increase, sourcing plan review.'
+      :'Deal blocked. Discuss with CEO. Trader may reapply with improvements (higher equity, better buyer).';
+    routingBlock='<div style="padding:12px 14px;border-radius:8px;margin-bottom:14px;border:1px solid '+rb2+';background:'+rbg+'">'
+      +'<div style="font-size:12px;font-weight:700;margin-bottom:4px;color:'+rc2+'">\u2192 '+rl+'</div>'
+      +'<p style="font-size:11px;color:#4B5563;line-height:1.5">'+rd+'</p>'
+      +'</div>';
+  }
+  const bandsHtml=[
+    ['75\u2013100','Low Risk','#16A34A','Direct submission. Standard 5-day review window.'],
+    ['55\u201374','Moderate Risk','#D97706','CEO review before submitting. CEO can approve or require additional validation.'],
+    ['40\u201354','Elevated Risk','#DC2626','CEO must approve. Extra buyer verification + equity increase request.'],
+    ['< 40','High Risk \u2014 Decline','#991B1B','Deal blocked. Trader may reapply with improvements.']
+  ].map(function(b){
+    return '<div style="margin-bottom:11px;padding-bottom:11px;border-bottom:1px solid #F3F4F6">'
+      +'<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px">'
+      +'<span class="mono" style="font-size:11px;font-weight:700;color:'+b[2]+'">'+b[0]+'</span>'
+      +'<span class="badge" style="background:'+b[2]+'18;color:'+b[2]+';border:none;font-size:9px">'+b[1].toUpperCase()+'</span>'
+      +'</div>'
+      +'<p style="font-size:11px;color:#6B7280">'+b[3]+'</p>'
+      +'</div>';
+  }).join('');
+  return '<div class="g2" style="align-items:start">'
+    +'<div>'+routingBlock+scoreBlock+'</div>'
+    +'<div class="card" style="padding:14px">'
+    +'<div style="font-size:10px;font-weight:700;color:#6B7280;letter-spacing:.07em;margin-bottom:12px">ESCALATION RULES</div>'
+    +bandsHtml
+    +'<div style="font-size:10px;color:#6B7280;background:#F8FAFC;border-radius:6px;padding:9px;line-height:1.5">'
+    +'<b>Score Evolution:</b> First-time trader scores 58 \u2192 after first completed trade \u2192 66 \u2192 fourth trade \u2192 76. System incentivises track record building.</div>'
+    +'</div></div>';
+}
+
+function renderDocsTab(d){
+  const ci=Object.keys(ST).indexOf(d.stage);
+  const DOCS=[
+    {n:'Offtake Contract',by:'Trader',to:'Miziba + Finance Partner',st:ci>0?'ACCEPTED':'PENDING'},
+    {n:'KYC Documents',by:'Trader',to:'Miziba internal',st:d.kyc==='VERIFIED'?'ACCEPTED':'UNDER REVIEW'},
+    {n:'Finance Data Package',by:'Bridge (auto)',to:'Finance Partner + Miziba',st:ci>=2?'ACCEPTED':'PENDING'},
+    {n:'Draft Term Sheet',by:'Bridge (template)',to:'Finance Partner + Trader',st:ci>=3?'ACCEPTED':'PENDING'},
+    {n:'Executed Term Sheet',by:'DocuSign',to:'All parties',st:d.escrow?'ACCEPTED':'PENDING'},
+    {n:'Escrow Deed',by:'TradeVault',to:'All parties',st:d.escrow?'ACCEPTED':'PENDING'},
+    {n:'Chain-of-Custody Certificate',by:'TrackGuard',to:'All parties',st:d.ship?'ACCEPTED':'PENDING'},
+    {n:'Buyer Payment Proof',by:'Trader + CFO',to:'Miziba + Finance Partner',st:d.bpay?'ACCEPTED':'PENDING'},
+    {n:'Transaction Reconciliation Report',by:'TradeVault',to:'All parties',st:d.stage==='SETTLED'?'ACCEPTED':'PENDING'},
+    {n:'Finance Partner Settlement Report',by:'Bridge (compiled)',to:'Finance Partner',st:d.stage==='SETTLED'?'ACCEPTED':'PENDING'},
+  ];
+  const rows=DOCS.map(function(doc){
+    const sc={ACCEPTED:'#16A34A',PENDING:'#9CA3AF','UNDER REVIEW':'#D97706'}[doc.st];
+    const sbg={ACCEPTED:'#F0FDF4',PENDING:'#F9FAFB','UNDER REVIEW':'#FFFBEB'}[doc.st];
+    const sb2={ACCEPTED:'#BBF7D0',PENDING:'#E5E7EB','UNDER REVIEW':'#FDE68A'}[doc.st];
+    return '<tr><td style="font-weight:500">'+doc.n+'</td><td style="color:#6B7280">'+doc.by+'</td>'
+      +'<td style="color:#6B7280">'+doc.to+'</td>'
+      +'<td><span class="badge" style="background:'+sbg+';color:'+sc+';border:1px solid '+sb2+'">'+doc.st+'</span></td></tr>';
+  }).join('');
+  return '<div class="card" style="overflow:hidden"><div class="card-head">Documents \u2014 '+d.id+'</div>'
+    +'<div style="padding:6px 14px;background:#F8FAFC;border-bottom:1px solid #F3F4F6;font-size:10px;color:#6B7280">'
+    +'Version-controlled \u00B7 Role-gated \u00B7 Immutable once executed \u00B7 7-year retention</div>'
+    +'<div class="tbl-wrap"><table class="tbl"><thead><tr>'
+    +'<th>DOCUMENT</th><th>CREATED BY</th><th>ACCESSIBLE TO</th><th>STATUS</th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+}
+
+function renderTimelineTab(d,ci){
+  const TL=[
+    {l:'Application submitted',det:'Trade ID '+d.id+' assigned. Trader notified.',done:true,date:d.dt},
+    {l:'KYC verification',det:'Status: '+d.kyc+'.',done:d.kyc==='VERIFIED',date:'2026-03-23'},
+    {l:'Offtake contract uploaded',det:'Signed contract received and parsed.',done:ci>=1,date:'2026-03-24'},
+    {l:'Validation checklist completed',det:'All 5 items passed. Risk score calculated.',done:ci>=2,date:'2026-03-26'},
+    {l:'Finance Data Package sent',det:'Auto-populated package submitted to finance partner.',done:ci>=3,date:'2026-03-28'},
+    {l:'Finance partner approval',det:d.fp?d.fp+' approved the facility.':'Awaiting decision.',done:ci>=4,date:'2026-04-01'},
+    {l:'Escrow pool created',det:'TradeVault escrow activated. Deposits confirmed.',done:!!d.escrow,date:'2026-04-02'},
+    {l:'Procurement commenced',det:'Farmers paid from escrow as lots delivered.',done:ci>=5,date:'2026-04-03'},
+    {l:'TrackGuard shipment created',det:'Lot formed. Chain-of-Custody cert issued.',done:!!d.ship,date:'2026-04-10'},
+    {l:'Buyer payment received',det:d.bpay?usd(d.bpay)+' received. CFO verified.':'Awaiting buyer payment.',done:!!d.bpay,date:d.bpd||null},
+    {l:'Waterfall settlement executed',det:'Finance partner paid first. Trader margin released.',done:d.stage==='SETTLED',date:d.bpd||null},
+  ];
+  const items=TL.map(function(ev,i){
+    return '<div style="display:flex;gap:12px;margin-bottom:16px">'
+      +'<div class="tl-dot" style="background:'+(ev.done?'#16A34A':'#F3F4F6')+';border-color:'+(ev.done?'#16A34A':'#E5E7EB')+'">'
+      +'<span style="color:'+(ev.done?'#fff':'#9CA3AF')+';font-size:10px;font-weight:700">'+(ev.done?'\u2713':(i+1))+'</span></div>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;flex-wrap:wrap">'
+      +'<span style="font-size:12px;font-weight:'+(ev.done?600:400)+';color:'+(ev.done?'#111827':'#9CA3AF')+'">'+ev.l+'</span>'
+      +(ev.date?'<span class="mono" style="font-size:10px;color:#9CA3AF">'+ev.date+'</span>':'')
+      +'</div><p style="font-size:11px;color:#6B7280;line-height:1.5">'+ev.det+'</p></div></div>';
+  }).join('');
+  return '<div class="card" style="padding:18px">'
+    +'<div style="font-size:13px;font-weight:600;margin-bottom:16px">Timeline \u2014 '+d.id+'</div>'
+    +'<div style="position:relative">'
+    +'<div style="position:absolute;left:11px;top:0;bottom:0;width:1px;background:#E5E7EB"></div>'
+    +items+'</div></div>';
+}
+
+// ── DEPLOYMENT TAB ────────────────────────────────────────────────────────────
+function renderDeploymentTab(d){
+  const pct=d.dep||0;
+  const depC=pct>80?'#D97706':pct<40?'#DC2626':'#16A34A';
+  const eudr=d.eudr||0;
+  const grA=d.gradeA||0; const grB=d.gradeB||0; const grC=d.gradeC||0;
+  const confirmedBatches=BATCH.filter(function(b){return b.st==='CONFIRMED';});
+  const totalPaid=confirmedBatches.reduce(function(a,b){return a+b.usd;},0);
+  const alerts=[];
+  if(eudr>0&&eudr<95) alerts.push('EUDR compliance '+eudr+'% below 95% threshold. Verify sourcing from EUDR-registered farmers.');
+  if(grA>0&&grA<75) alerts.push('Grade A procurement at '+grA+'% \u2014 below contract requirement (min. 75%). Monitor quality intake.');
+  if(pct<40) alerts.push('Capital deployment pace below target. Procurement may not meet delivery deadline.');
+
+  const batchRows=BATCH.map(function(b){
+    return '<tr>'
+      +'<td class="mono" style="font-size:11px">'+b.id+'</td>'
+      +'<td class="mono" style="font-size:11px;color:#9CA3AF">'+b.fid+'</td>'
+      +'<td style="font-size:11px">'+b.tp+'</td>'
+      +'<td class="mono">'+b.wt.toLocaleString()+'</td>'
+      +'<td class="mono">'+b.ghs.toLocaleString()+'</td>'
+      +'<td class="mono">$'+b.usd+'</td>'
+      +'<td><span class="badge" style="background:'+(b.st==='CONFIRMED'?'#F0FDF4':'#FFFBEB')+';color:'+(b.st==='CONFIRMED'?'#16A34A':'#D97706')+';border:1px solid '+(b.st==='CONFIRMED'?'#BBF7D0':'#FDE68A')+'">'+b.st+'</span></td>'
+      +'<td class="mono" style="font-size:10px;color:#9CA3AF">'+b.ts+'</td>'
+      +'</tr>';
+  }).join('');
+
+  return '<div>'
+    +'<div class="g4" style="margin-bottom:16px">'
+    +'<div class="metric"><div class="metric-label">CAPITAL DEPLOYED</div><div class="metric-val" style="color:'+depC+'">'+pct+'%</div></div>'
+    +'<div class="metric"><div class="metric-label">VOLUME PROCURED</div><div class="metric-val" style="font-size:16px">'+(d.vp||0)+' MT</div>'
+    +'<div style="font-size:10px;color:#9CA3AF">of '+d.vol+' MT target</div></div>'
+    +'<div class="metric"><div class="metric-label">FARMER PAYMENTS</div><div class="metric-val" style="font-size:16px">'+usd(totalPaid)+'</div></div>'
+    +'<div class="metric"><div class="metric-label">EUDR COMPLIANCE</div><div class="metric-val" style="color:'+(eudr>=95?'#16A34A':'#DC2626')+'">'+eudr+'%</div></div>'
+    +'</div>'
+    +'<div class="card" style="padding:16px;margin-bottom:16px">'
+    +'<div style="display:flex;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">'
+    +'<span style="font-size:13px;font-weight:600">Capital Deployment Progress</span>'
+    +'<span class="mono" style="font-weight:700;color:'+depC+'">'+pct+'% of '+usd(d.pc)+'</span>'
+    +'</div>'
+    +'<div class="pbar" style="height:14px;border-radius:7px">'
+    +'<div class="pbar-fill" style="width:'+pct+'%;background:'+depC+';border-radius:7px"></div></div>'
+    +'<div style="display:flex;justify-content:space-between;margin-top:5px;font-size:10px;color:#9CA3AF">'
+    +'<span>0%</span><span>50% pace check</span><span>100%</span></div>'
+    +'<div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">'
+    +[['Volume Progress',(d.vp||0)+' / '+d.vol+' MT'],['Proj. Completion','2026-04-28 (est.)'],['Delivery Deadline',d.dl],['Batches Logged',BATCH.length+' batches']].map(function(x){
+      return '<div style="background:#F8FAFC;border-radius:7px;padding:10px 12px;flex:1;min-width:90px">'
+        +'<div style="font-size:9px;color:#9CA3AF;font-weight:600;margin-bottom:3px">'+x[0].toUpperCase()+'</div>'
+        +'<div class="mono" style="font-size:13px;font-weight:600">'+x[1]+'</div></div>';
+    }).join('')
+    +'</div></div>'
+    +'<div class="g2" style="margin-bottom:16px;align-items:start">'
+    +'<div class="card" style="padding:16px">'
+    +'<div style="font-size:13px;font-weight:600;margin-bottom:12px">Quality Distribution</div>'
+    +[['Grade A',grA,'#16A34A','Contract requires min. 75%'],['Grade B',grB,'#D97706',''],['Grade C',grC,'#9CA3AF','']].map(function(g){
+      return '<div style="margin-bottom:10px">'
+        +'<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+        +'<span style="font-size:12px">'+g[0]+'</span>'
+        +'<span class="mono" style="font-weight:700;font-size:12px;color:'+g[2]+'">'+g[1]+'%</span></div>'
+        +'<div class="pbar"><div class="pbar-fill" style="width:'+g[1]+'%;background:'+g[2]+'"></div></div>'
+        +(g[3]?'<div style="font-size:10px;color:'+(g[1]<75?'#DC2626':'#9CA3AF')+';margin-top:3px">'+g[3]+'</div>':'')
+        +'</div>';
+    }).join('')
+    +'</div>'
+    +'<div>'
+    +(alerts.length?'<div class="card" style="padding:14px;margin-bottom:12px">'
+      +'<div style="font-size:12px;font-weight:700;color:#D97706;margin-bottom:10px">Deployment Alerts</div>'
+      +alerts.map(function(a){
+        return '<div style="display:flex;gap:8px;padding:9px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:7px;margin-bottom:7px;font-size:11px;color:#92400E;line-height:1.5">'
+          +'<span style="flex-shrink:0">\u26A0</span><span>'+a+'</span></div>';
+      }).join('')+'</div>':'')
+    +'<div class="card" style="padding:14px">'
+    +'<div style="font-size:12px;font-weight:600;margin-bottom:8px">EUDR Compliance Monitor</div>'
+    +'<div style="text-align:center;padding:8px 0">'
+    +'<div class="mono" style="font-size:32px;font-weight:700;color:'+(eudr>=95?'#16A34A':'#DC2626')+'">'+eudr+'%</div>'
+    +'<div style="font-size:11px;color:#6B7280;margin-top:4px">batches from EUDR-verified farmers</div>'
+    +'<div style="font-size:10px;margin-top:8px;padding:5px 10px;background:'+(eudr>=95?'#F0FDF4':'#FEF2F2')+';border-radius:5px;color:'+(eudr>=95?'#16A34A':'#DC2626')+'">'
+    +(eudr>=95?'\u2713 Above 95% \u2014 compliant':'\u26A0 Below 95% \u2014 action required')+'</div></div>'
+    +'</div></div></div>'
+    +'<div class="card" style="overflow:hidden">'
+    +'<div class="card-head"><span>Batch-Level Deployment Log</span>'
+    +'<span style="font-size:10px;color:#9CA3AF">Updated every 30 min \u00B7 Farmer IDs anonymised for FP view</span></div>'
+    +'<div class="tbl-wrap"><table class="tbl" style="min-width:640px">'
+    +'<thead><tr><th>BATCH ID</th><th>FARMER ID</th><th>TRADEPOINT</th>'
+    +'<th>WEIGHT (kg)</th><th>GHS PAID</th><th>USD EQUIV.</th><th>STATUS</th><th>TIMESTAMP</th></tr></thead>'
+    +'<tbody>'+batchRows+'</tbody></table></div></div></div>';
+}
+
+// ── LOGISTICS TAB ─────────────────────────────────────────────────────────────
+function renderLogisticsTab(d){
+  const isDelivered=d.stage==='DELIVERED';
+  const ss=isDelivered?'DELIVERED':'IN TRANSIT';
+  const sc=isDelivered?'#16A34A':'#2563EB';
+  const sbg=isDelivered?'#F0FDF4':'#EFF6FF';
+  return '<div>'
+    +'<div class="g3" style="margin-bottom:16px">'
+    +'<div class="metric"><div class="metric-label">SHIPMENT STATUS</div>'
+    +'<div style="margin-top:6px"><span class="badge" style="background:'+sbg+';color:'+sc+';border:1px solid '+sc+'30;font-size:13px;padding:5px 12px">'+ss+'</span></div></div>'
+    +'<div class="metric"><div class="metric-label">SHIPMENT ID</div>'
+    +'<div class="mono" style="font-size:14px;font-weight:600;margin-top:6px">'+(d.ship||'Not created')+'</div></div>'
+    +'<div class="metric"><div class="metric-label">DELIVERY POINT</div>'
+    +'<div style="font-size:13px;font-weight:500;margin-top:6px">'+d.dp+'</div></div>'
+    +'</div>'
+    +'<div class="card" style="padding:16px;margin-bottom:14px">'
+    +'<div style="font-size:13px;font-weight:600;margin-bottom:14px">Shipment Status Widget \u2014 TrackGuard Integration</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">'
+    +[
+      ['Current GPS (city-level)',isDelivered?d.dp:'En route \u2014 Accra Region, Ghana'],
+      ['ETA',isDelivered?'Delivered 2026-04-09':'2026-04-12 (est.)'],
+      ['Last Update',isDelivered?'2026-04-09 11:45':'2026-04-10 14:23'],
+      ['Weight at Delivery',isDelivered?(d.deliveredWt||d.vol)+' MT':'In transit'],
+      ['Weight Variance',isDelivered?(d.wvariance||0)+'% (within 1% tolerance)':'—'],
+      ['Chain-of-Custody Cert',d.ship?'Issued \u2014 available in Documents':'Not yet issued']
+    ].map(function(x){
+      return '<div style="background:#F8FAFC;border-radius:7px;padding:10px 12px">'
+        +'<div style="font-size:9px;color:#9CA3AF;font-weight:600;margin-bottom:3px">'+x[0].toUpperCase()+'</div>'
+        +'<div style="font-size:12px;font-weight:500">'+x[1]+'</div></div>';
+    }).join('')
+    +'</div>'
+    +'<div style="font-size:10px;color:#9CA3AF;font-style:italic;padding:8px 0;border-top:1px solid #F3F4F6">'
+    +'TradeAxis displays status summaries only. Full GPS track, IoT readings, and complete CCC remain in TrackGuard.</div>'
+    +'</div>'
+    +'<div class="card" style="padding:16px">'
+    +'<div style="font-size:13px;font-weight:600;margin-bottom:12px">TrackGuard Alert Feed</div>'
+    +(isDelivered
+      ?'<div style="padding:13px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:7px;font-size:12px;color:#16A34A;font-weight:500">\u2713 No alerts \u2014 shipment completed without incident. All seals intact.</div>'
+        +'<div style="margin-top:12px;padding:12px;background:#F8FAFC;border-radius:8px">'
+        +'<div style="font-size:11px;font-weight:600;margin-bottom:6px">Delivery Confirmation</div>'
+        +'<div style="font-size:11px;color:#6B7280;line-height:1.6">Delivered: <b class="mono">'+(d.deliveredWt||d.vol)+' MT</b> at '+d.dp+'. Weight variance: <b class="mono">'+(d.wvariance||0)+'%</b>. CCC issued and attached to trade record.</div></div>'
+      :'<div style="display:flex;gap:10px;padding:11px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:7px;margin-bottom:8px">'
+        +'<span class="badge" style="background:#BFDBFE;color:#2563EB;border:none;font-size:9px;flex-shrink:0">ROUTE CHECK</span>'
+        +'<p style="font-size:11px;color:#374151;line-height:1.5">Route deviation flagged at Kumasi junction \u2014 road construction. Deal Officer confirmed alternate route acceptable. 2026-04-09 08:42.</p></div>'
+        +'<div style="padding:9px;background:#F8FAFC;border-radius:6px;font-size:11px;color:#6B7280">No other alerts active.</div>'
+    )
+    +'</div></div>';
+}
+
+// ── CLOSURE TAB ───────────────────────────────────────────────────────────────
+function renderClosureTab(d){
+  const cs=S.closureState[d.id]||{};
+  const done=Object.keys(cs).filter(function(k){return cs[k];}).length;
+  const allDone=done>=7;
+  const ITEMS=[
+    {k:'wf',l:'All waterfall payments confirmed by receiving parties',det:'Finance partner, Miziba, and trader all confirm receipt of their respective waterfall disbursements.'},
+    {k:'trr',l:'Transaction Reconciliation Report (TRR) received from TradeVault',det:'TRR downloaded from TradeVault, attached to trade record. Master financial audit document.'},
+    {k:'ccc',l:'Chain-of-Custody Certificate (CCC) received from TrackGuard',det:'CCC downloaded from TrackGuard and attached to trade record. Logistics audit document.'},
+    {k:'buyer_perf',l:'Buyer payment performance recorded',det:'Buyer creditworthiness database updated: on-time, late (days), or disputed. Feeds future risk scoring.'},
+    {k:'trader_rec',l:'Trader track record updated',det:'Trader profile updated: trades_completed +1, total_volume_mt updated, trader_risk_score recalculated.'},
+    {k:'fp_report',l:'Finance partner settlement report generated',det:'TRR + waterfall confirmation + IRIS+ impact metrics compiled and sent to finance partner via portal and email.'},
+    {k:'locked',l:'Trade record locked and closed',det:'Deal status set to CLOSED. Record immutable. All documents archived with 7-year retention.'},
+  ];
+  const items=ITEMS.map(function(item){
+    return '<div class="cl-item">'
+      +'<div class="cl-box '+(cs[item.k]?'on':'')+'" onclick="toggleClosure(\''+d.id+'\',\''+item.k+'\')">'
+      +(cs[item.k]?'<span style="color:#fff;font-size:11px;font-weight:700">\u2713</span>':'')
+      +'</div>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap">'
+      +'<span style="font-size:12px;font-weight:600">'+item.l+'</span>'
+      +'<span class="badge" style="background:'+(cs[item.k]?'#F0FDF4':'#F9FAFB')+';color:'+(cs[item.k]?'#16A34A':'#9CA3AF')+';border:1px solid '+(cs[item.k]?'#BBF7D0':'#E5E7EB')+'">'+(cs[item.k]?'DONE':'PENDING')+'</span>'
+      +'</div>'
+      +'<p style="font-size:11px;color:#6B7280;line-height:1.5">'+item.det+'</p>'
+      +'</div></div>';
+  }).join('');
+  return '<div>'
+    +'<div class="card" style="padding:16px;margin-bottom:14px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">'
+    +'<span style="font-size:13px;font-weight:600">Trade Closure Checklist \u2014 '+d.id+'</span>'
+    +'<span class="mono" style="font-weight:700;color:'+(allDone?'#16A34A':'#D97706')+'">'+done+'/7</span>'
+    +'</div>'
+    +'<div class="pbar" style="height:8px"><div class="pbar-fill" style="width:'+Math.round(done/7*100)+'%;background:'+(allDone?'#16A34A':'#D97706')+'"></div></div>'
+    +(allDone?'<div class="alert alert-success" style="margin-top:10px;margin-bottom:0">All 7 closure items complete. Trade record ready to lock.</div>':'')
+    +'</div>'
+    +items
+    +'<div style="margin-top:6px">'
+    +'<button class="btn btn-navy" onclick="lockTrade(\''+d.id+'\')" '+(allDone?'':'style="opacity:.5;cursor:not-allowed"')+'>\uD83D\uDD12 Lock Trade Record \u2014 Mark as CLOSED</button>'
+    +'<p style="font-size:10px;color:#9CA3AF;margin-top:8px">Once locked, the trade record is immutable. All linked documents archived under 7-year retention policy.</p>'
+    +'</div></div>';
+}
+
+// ── FINANCE DATA PACKAGE ──────────────────────────────────────────────────────
+function renderFDP(id){
+  const d=TRADES.find(function(t){return t.id===id;});if(!d)return '';
+  const rb=d.rb||{buyer_risk:15,trader_risk:18,commodity_price_risk:14,sourcing_supply_risk:11,logistics_delivery_risk:10};
+  const tr=Object.values(rb).reduce(function(a,v){return a+v;},0);
+  const score=d.risk||tr;
+  const fp_return=Math.round(d.ff*0.12);
+  const wf_fp=Math.round(d.ff*1.12);
+  const wf_m=Math.round(d.cv*0.015);
+  const wf_t=d.cv-wf_fp-wf_m;
+  const bkeven=Math.round((d.ff*1.12+d.cv*0.015)/d.vol);
+  const open=S.fdpOpenSec[id]||{};
+
+  function mkSec(n,title,body){
+    const isOpen=open[n]!==false;
+    return '<div class="fdp-sec">'
+      +'<div class="fdp-sec-head" onclick="toggleFDPSec(\''+id+'\',\''+n+'\')">'
+      +'<div style="display:flex;align-items:center;gap:10px">'
+      +'<div style="width:22px;height:22px;border-radius:5px;background:#8B0000;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+n+'</div>'
+      +'<span style="font-size:13px;font-weight:600">'+title+'</span>'
+      +'</div>'
+      +'<span style="color:#9CA3AF;font-size:14px">'+(isOpen?'\u25BC':'\u25B6')+'</span>'
+      +'</div>'
+      +(isOpen?'<div class="fdp-sec-body">'+body+'</div>':'')
+      +'</div>';
+  }
+
+  const DIM_LABELS={buyer_risk:'Buyer Risk',trader_risk:'Trader Risk',commodity_price_risk:'Commodity & Price',sourcing_supply_risk:'Sourcing & Supply',logistics_delivery_risk:'Logistics & Delivery'};
+  const DIM_MAX={buyer_risk:25,trader_risk:25,commodity_price_risk:20,sourcing_supply_risk:15,logistics_delivery_risk:15};
+  const dimBars=Object.entries(rb).map(function(e){
+    const k=e[0]; const v=e[1];
+    const mx=DIM_MAX[k];
+    const pct=Math.round((v/mx)*100);
+    const dc=pct>=70?'#16A34A':pct>=45?'#D97706':'#DC2626';
+    return '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">'
+      +'<span style="font-size:11px;font-weight:500;width:150px;flex-shrink:0">'+DIM_LABELS[k]+'</span>'
+      +'<div style="flex:1;height:5px;background:#F3F4F6;border-radius:3px;overflow:hidden">'
+      +'<div style="height:100%;width:'+pct+'%;background:'+dc+';border-radius:3px"></div></div>'
+      +'<span class="mono" style="font-size:11px;font-weight:700;color:'+dc+';width:40px">'+v+'/'+mx+'</span>'
+      +'</div>';
+  }).join('');
+
+  const sections=[
+    mkSec(1,'Executive Summary',
+      row('Trade Reference',id,true)
+      +row('Commodity',d.cmd.charAt(0).toUpperCase()+d.cmd.slice(1)+' Grade '+d.gr+' \u2014 '+d.vol+' MT')
+      +row('Buyer',d.buyer+' ('+d.bc+')')
+      +row('Contract Price','$'+d.price.toLocaleString()+'/MT',true)
+      +row('Contract Value',usd(d.cv),true)
+      +row('Facility Required',usd(d.ff),true,'#7C3AED')
+      +row('Deal Timeline','Procurement by '+d.dl+' \u00B7 Payment '+d.pt+' days after delivery')
+      +row('Risk Score',score+'/100 \u2014 '+(score>=75?'LOW RISK':'MODERATE RISK'),true)
+      +row('Projected FP Return',usd(fp_return)+' (12% annualised on '+usd(d.ff)+')',true,'#16A34A')
+    ),
+    mkSec(2,'Buyer Profile',
+      row('Buyer Name',d.buyer)
+      +row('Country',d.bc)
+      +row('Verification','VERIFIED \u2014 No sanctions (OFAC, EU, UN checked)',false,'#16A34A')
+      +row('Previous Miziba Trades','2 completed \u00B7 100% on-time payment record')
+      +row('Reference','Bank reference obtained from buyer\'s corresponding bank')
+    ),
+    mkSec(3,'Commodity & Market Analysis',
+      row('Commodity',d.cmd.charAt(0).toUpperCase()+d.cmd.slice(1)+' \u2014 food grade')
+      +row('Market Price (ICCO)','$1,185/MT \u2014 contract within \u00B15% of benchmark',false,'#16A34A')
+      +row('Price Trend (3-month)','Stable \u2014 USD 1,150\u20131,220/MT range')
+      +row('EUDR Compliance','Northern Ghana sourcing zones EUDR-compliant. FarmerIQ geo-data registered.')
+      +row('Seasonal Availability','Peak harvest. Supply abundant. 14 TradePoints active.')
+    ),
+    mkSec(4,'Sourcing Plan',
+      row('Active TradePoints','Kintampo North, Kintampo South, Techiman Central, Wenchi Junction')
+      +row('Farmer Count','340 registered farmers in network')
+      +row('MCRS Grade Distribution','Grade A: 68% \u00B7 Grade B: 26% \u00B7 Grade C: 6%')
+      +row('90-day Throughput','82 MT at comparable centres \u2014 deal requires 55 MT (67% of capacity)')
+      +row('Competing Commitments','None \u2014 no overlapping procurement at these centres')
+    ),
+    mkSec(5,'Trader Profile',
+      row('Company',d.tr)
+      +row('Trader ID',d.tid,true)
+      +row('KYC Status','VERIFIED \u2014 Certificate of Incorporation, TIN, Director IDs confirmed',false,'#16A34A')
+      +row('Bridge Track Record','2 completed trades \u00B7 95 MT total \u00B7 0% default rate',false,'#16A34A')
+      +row('Trader Risk Score',score+'/100',true)
+      +row('Equity Commitment',usd(d.eq)+' ('+Math.round(d.eq/d.pc*100)+'% of procurement cost)')
+    ),
+    mkSec(6,'Financial Structure',
+      row('Total Procurement Cost',usd(d.pc),true)
+      +row('Trader Equity ('+Math.round(d.eq/d.pc*100)+'%)',usd(d.eq),true,'#2563EB')
+      +row('Finance Facility ('+Math.round(d.ff/d.pc*100)+'%)',usd(d.ff),true,'#7C3AED')
+      +row('Miziba Structuring Fee','1.0% of facility = '+usd(Math.round(d.ff*0.01)))
+      +row('Miziba Settlement Fee','0.5% of contract = '+usd(Math.round(d.cv*0.005)))
+      +row('Break-Even Buyer Price','$'+bkeven+'/MT \u2014 FP fully repaid at this price',true)
+      +row('Waterfall','FP: '+usd(wf_fp)+' \u2192 Miziba: '+usd(wf_m)+' \u2192 Trader: '+usd(wf_t))
+      +row('FP Return (annualised)','12.0% p.a. \u2014 tenor approx. 60 days',false,'#16A34A')
+    ),
+    mkSec(7,'Risk Assessment',
+      '<div style="margin-bottom:12px">'+dimBars+'</div>'
+      +row('Composite Score',score+'/100 \u2014 '+(score>=75?'LOW RISK':'MODERATE RISK'),true)
+      +row('Key Mitigants','EUDR verification \u00B7 TradeVault waterfall protection \u00B7 GPS-tracked delivery \u00B7 2-hour farmer payment SLA \u00B7 Trader equity first-loss')
+    ),
+    mkSec(8,'Draft Term Sheet',
+      row('Facility Type','Commodity Trade Finance Facility')
+      +row('Facility Amount',usd(d.ff),true,'#7C3AED')
+      +row('Facility Fee Rate','12.0% per annum (approx. 2% for 60-day tenor)')
+      +row('Tenor','60 days from escrow funding to waterfall settlement')
+      +row('Waterfall Priority','Finance Partner Tier 1 \u2192 Miziba Tier 2 \u2192 Trader Tier 3')
+      +row('Escrow Structure','TradeVault pool \u00B7 Dual-approval release \u00B7 Automated waterfall execution')
+      +row('Governing Law','Republic of Ghana')
+      +row('Dispute Resolution','Commercial Court of Ghana, Accra')
+      +row('Status','Draft \u2014 subject to finance partner approval and DocuSign execution')
+    ),
+    mkSec(9,'Supporting Documents',
+      '<div style="font-size:12px;color:#6B7280;line-height:1.9">'
+      +'<div>\u25C8 <b>Offtake Contract:</b> Signed with '+d.buyer+' \u2014 available on request</div>'
+      +'<div>\u25C8 <b>KYC Documents:</b> '+d.tr+' \u2014 Certificate of Incorporation, TIN, Director IDs</div>'
+      +'<div>\u25C8 <b>Export Licence:</b> Active \u2014 reference available on request</div>'
+      +'<div>\u25C8 <b>Previous TRRs:</b> 2 Transaction Reconciliation Reports \u2014 0% default rate</div>'
+      +'<div>\u25C8 <b>Miziba Portfolio:</b> 8 trades \u00B7 $800,000+ total \u00B7 0% default \u00B7 22-day avg cycle</div>'
+      +'</div>'
+    ),
+  ].join('');
+
+  return '<div class="modal-overlay" onclick="if(event.target===this)closeFDP()">'
+    +'<div class="modal">'
+    +'<div class="modal-head">'
+    +'<div>'
+    +'<div style="font-size:15px;font-weight:700">Finance Data Package \u2014 '+id+'</div>'
+    +'<div style="font-size:11px;color:#6B7280;margin-top:2px">'+d.cmd+' Grade '+d.gr+' \u00B7 '+d.vol+' MT \u00B7 '+d.buyer+' \u00B7 Risk: '+score+'/100</div>'
+    +'</div>'
+    +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+    +'<button class="btn btn-primary btn-sm" onclick="notify(\'Finance Data Package for '+id+' sent to finance partner queue.\');closeFDP()">Send to Finance Partner</button>'
+    +'<button class="btn btn-secondary btn-sm" onclick="notify(\'PDF generation queued. Ready in 15 seconds.\',\'info\')">Download PDF</button>'
+    +'<button class="modal-close" onclick="closeFDP()">\u2715</button>'
+    +'</div></div>'
+    +'<div style="padding:16px">'
+    +'<div class="alert alert-gold" style="margin-bottom:14px"><b>Confidential \u2014 Finance Data Package</b> \u00B7 Prepared by Miziba Bridge \u00B7 '+new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})+' \u00B7 Immutable once sent.</div>'
+    +sections
+    +'<div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">'
+    +'<button class="btn btn-primary" onclick="notify(\'Finance Data Package for '+id+' sent.\');closeFDP()">Send to Finance Partner</button>'
+    +'<button class="btn btn-secondary" onclick="notify(\'PDF queued.\',\'info\')">Download PDF</button>'
+    +'<button class="btn btn-ghost btn-sm" onclick="closeFDP()">Close</button>'
+    +'</div></div></div></div>';
+}
+
+// ── RISK CALCULATOR ───────────────────────────────────────────────────────────
+function renderRiskCalc(){
+  const sc=S.rscores;
+  const DIMS=[
+    {k:'buyer_risk',l:'Buyer Risk',mx:25,w:'25%',tiers:[[25,'Repeat buyer, clean payment history'],[18,'Repeat buyer, 1 late payment'],[15,'First-time, verified, reference obtained'],[8,'First-time, limited verification'],[0,'Outstanding dispute \u2014 ZERO']]},
+    {k:'trader_risk',l:'Trader Risk',mx:25,w:'25%',tiers:[[25,'3+ trades, 0% default'],[18,'1\u20132 trades, 0% default'],[12,'First-time, strong KYC & capital proof'],[6,'First-time, marginal KYC'],[0,'Previous default \u2014 IMMEDIATE DECLINE']]},
+    {k:'commodity_price_risk',l:'Commodity & Price',mx:20,w:'20%',tiers:[[20,'Within 5% of benchmark'],[14,'Within 5\u201315%'],[8,'Within 15\u201320%'],[0,'>20% deviation \u2014 CEO review']]},
+    {k:'sourcing_supply_risk',l:'Sourcing & Supply',mx:15,w:'15%',tiers:[[15,'<50% of 90-day capacity'],[11,'50\u201380% of capacity'],[6,'80\u2013100% of capacity'],[0,'>100% \u2014 not feasible']]},
+    {k:'logistics_delivery_risk',l:'Logistics & Delivery',mx:15,w:'15%',tiers:[[15,'Domestic, full TrackGuard'],[12,'Export, TrackGuard Mode A'],[7,'Cross-border, no GPS'],[3,'No TrackGuard coverage']]},
+  ];
+  const total=Object.values(sc).reduce(function(a,v){return a+v;},0);
+  const tc=total>=75?'#16A34A':total>=55?'#D97706':total>=40?'#DC2626':'#991B1B';
+  const tl=total>=75?'Low Risk \u2014 Direct Submission':total>=55?'Moderate Risk \u2014 CEO Review Required':total>=40?'Elevated Risk \u2014 CEO Must Approve':'High Risk \u2014 Decline Deal';
+  const rd=total>=75?'Deal Officer may generate Finance Data Package and submit directly. Standard 5-day review window.'
+    :total>=55?'Present to CEO before submitting. CEO can approve direct submission or require additional validation.'
+    :total>=40?'CEO must approve. Additional due diligence: buyer verification, equity increase, sourcing plan review.'
+    :'Deal should not proceed. Discuss with CEO. Trader may reapply with improvements.';
+
+  const dimCards=DIMS.map(function(dim){
+    const s=sc[dim.k]; const p=Math.round((s/dim.mx)*100);
+    const dc=p>=70?'#16A34A':p>=45?'#D97706':'#DC2626';
+    const tiers=dim.tiers.map(function(t){
+      return '<div class="risk-tier '+(s===t[0]?'sel':'')+'" onclick="setRisk(\''+dim.k+'\','+t[0]+')">'
+        +'<span class="mono" style="font-size:11px;font-weight:700;color:'+(s===t[0]?'#2563EB':'#9CA3AF')+';width:20px;text-align:right;flex-shrink:0">'+t[0]+'</span>'
+        +'<span style="font-size:11px;color:'+(s===t[0]?'#111827':'#6B7280')+';line-height:1.4">'+t[1]+'</span>'
+        +'</div>';
+    }).join('');
+    return '<div class="card" style="padding:16px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+      +'<div><div style="font-size:12px;font-weight:600">'+dim.l+'</div>'
+      +'<div style="font-size:10px;color:#9CA3AF">'+dim.w+' \u00B7 Max '+dim.mx+'pts</div></div>'
+      +'<span class="mono" style="font-size:22px;font-weight:700;color:'+dc+'">'+s+'</span>'
+      +'</div>'
+      +'<div class="pbar" style="margin-bottom:12px">'
+      +'<div class="pbar-fill" style="width:'+p+'%;background:'+dc+'"></div></div>'
+      +tiers+'</div>';
+  }).join('');
+
+  return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;flex-wrap:wrap">'
+    +'<div><h2 style="font-size:16px;font-weight:700">Risk Scoring Calculator</h2>'
+    +'<p style="font-size:11px;color:#6B7280;margin-top:2px">5 dimensions \u00B7 100 points \u00B7 Click tier to select</p></div>'
+    +'<div style="text-align:right"><div class="mono" style="font-size:42px;font-weight:700;color:'+tc+';line-height:1">'+total+'</div>'
+    +'<div style="font-size:11px;color:#6B7280">/100</div></div>'
+    +'</div>'
+    +'<div class="card" style="padding:16px;margin-bottom:14px">'
+    +'<div style="display:flex;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">'
+    +'<span style="font-size:13px;font-weight:600;color:'+tc+'">'+tl+'</span>'
+    +'<span class="mono" style="font-weight:700;color:'+tc+'">'+total+'/100</span></div>'
+    +'<div class="pbar" style="height:10px"><div class="pbar-fill" style="width:'+total+'%;background:'+tc+'"></div></div>'
+    +'<div style="display:flex;justify-content:space-between;margin-top:5px;font-size:10px;color:#9CA3AF">'
+    +'<span>0</span><span style="color:#991B1B">40 Decline</span><span style="color:#D97706">55 Moderate</span><span style="color:#16A34A">75 Low</span><span>100</span></div>'
+    +'<div style="margin-top:12px;padding:10px 12px;background:'+(total>=75?'#F0FDF4':total>=55?'#FFFBEB':'#FEF2F2')+';border:1px solid '+(total>=75?'#BBF7D0':total>=55?'#FDE68A':'#FECACA')+';border-radius:7px;font-size:12px;color:'+tc+';font-weight:500">'+rd+'</div>'
+    +'</div>'
+    +'<div class="g2">'+dimCards+'</div>';
+}
+
+// ── PORTFOLIO ─────────────────────────────────────────────────────────────────
+function renderPortfolio(){
+  const tv=TRADES.reduce(function(a,t){return a+t.cv;},0);
+  const tf=TRADES.reduce(function(a,t){return a+t.ff;},0);
+  const rScores=TRADES.filter(function(t){return t.risk;});
+  const ar=rScores.length?Math.round(rScores.reduce(function(a,t){return a+t.risk;},0)/rScores.length):0;
+  const bc={};TRADES.forEach(function(t){bc[t.cmd]=(bc[t.cmd]||0)+t.cv;});
+
+  const cmdBars=Object.entries(bc).map(function(e){
+    const c=e[0]; const v=e[1];
+    const cm=CMD[c]||{c:'#888',i:'\u25CF',l:c};
+    const p=Math.round((v/tv)*100);
+    return '<div style="margin-bottom:12px">'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+      +'<span style="font-size:12px;display:flex;align-items:center;gap:5px"><span style="color:'+cm.c+'">'+cm.i+'</span>'+cm.l+'</span>'
+      +'<span class="mono" style="font-size:11px;font-weight:600;color:'+cm.c+'">'+usd(v)+' ('+p+'%)</span>'
+      +'</div>'
+      +'<div class="pbar"><div class="pbar-fill" style="width:'+p+'%;background:'+cm.c+'"></div></div>'
+      +'</div>';
+  }).join('');
+
+  const stageDist=Object.entries(ST).map(function(e){
+    const s=e[0]; const cfg=e[1];
+    const cnt=TRADES.filter(function(t){return t.stage===s;}).length;
+    if(!cnt)return '';
+    const p=Math.round((cnt/TRADES.length)*100);
+    return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
+      +'<div style="width:95px;flex-shrink:0;font-size:10px;color:'+cfg.c+';font-weight:500">'+cfg.l+'</div>'
+      +'<div style="flex:1;height:7px;background:#F3F4F6;border-radius:3px;overflow:hidden">'
+      +'<div style="height:100%;width:'+p+'%;background:'+cfg.c+';border-radius:3px"></div></div>'
+      +'<span class="mono" style="width:16px;font-size:11px;font-weight:700">'+cnt+'</span>'
+      +'</div>';
+  }).join('');
+
+  const buyerConc=(function(){
+    const bv={};
+    TRADES.forEach(function(t){bv[t.buyer]=(bv[t.buyer]||0)+t.cv;});
+    return Object.entries(bv).sort(function(a,b){return b[1]-a[1];}).map(function(e){
+      const p=Math.round((e[1]/tv)*100);
+      const risk=p>30?'#DC2626':p>20?'#D97706':'#16A34A';
+      return '<div style="margin-bottom:8px">'
+        +'<div style="display:flex;justify-content:space-between;margin-bottom:3px">'
+        +'<span style="font-size:11px">'+e[0]+'</span>'
+        +'<span class="mono" style="font-size:11px;color:'+risk+';font-weight:600">'+p+'%</span></div>'
+        +'<div class="pbar"><div class="pbar-fill" style="width:'+p+'%;background:'+risk+'"></div></div>'
+        +'</div>';
+    }).join('');
+  })();
+
+  return '<div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
+    +'<div><h2 style="font-size:16px;font-weight:700">Portfolio Dashboard</h2>'
+    +'<p style="font-size:11px;color:#6B7280;margin-top:2px">All-time metrics \u00B7 IRIS+ impact \u00B7 Investor-grade</p></div>'
+    +'<div style="display:flex;gap:7px;flex-wrap:wrap">'
+    +'<span class="badge" style="background:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0">0% Default Rate</span>'
+    +'<span class="badge" style="background:#EFF6FF;color:#2563EB;border:1px solid #BFDBFE">22d Avg Cycle</span>'
+    +'</div></div>'
+    +'<div class="g4" style="margin-bottom:16px">'
+    +'<div class="metric" style="border-top:3px solid #0D1F3C"><div class="metric-label">TOTAL DEALS</div><div class="metric-val" style="color:#0D1F3C">'+TRADES.length+'</div>'
+    +'<div style="font-size:10px;color:#9CA3AF;margin-top:2px">'+TRADES.filter(function(t){return t.stage==='SETTLED';}).length+' settled</div></div>'
+    +'<div class="metric" style="border-top:3px solid #8B0000"><div class="metric-label">PORTFOLIO VALUE</div><div class="metric-val" style="color:#8B0000;font-size:16px">'+usd(tv)+'</div></div>'
+    +'<div class="metric" style="border-top:3px solid #2563EB"><div class="metric-label">TOTAL FACILITY</div><div class="metric-val" style="color:#2563EB;font-size:16px">'+usd(tf)+'</div></div>'
+    +'<div class="metric" style="border-top:3px solid #16A34A"><div class="metric-label">AVG RISK SCORE</div><div class="metric-val" style="color:#16A34A">'+ar+'/100</div></div>'
+    +'</div>'
+    +'<div class="g4" style="margin-bottom:16px">'
+    +'<div class="metric"><div class="metric-label">FARMER SLA COMPLIANCE</div><div class="metric-val" style="color:#16A34A">98.5%</div><div style="font-size:10px;color:#9CA3AF;margin-top:2px">2-hour payment target</div></div>'
+    +'<div class="metric"><div class="metric-label">WEIGHT RECONCILIATION</div><div class="metric-val" style="color:#16A34A">99.2%</div><div style="font-size:10px;color:#9CA3AF;margin-top:2px">Delivery vs target accuracy</div></div>'
+    +'<div class="metric"><div class="metric-label">FP RETURN RANGE</div><div class="metric-val" style="font-size:16px">11\u201314%</div><div style="font-size:10px;color:#9CA3AF;margin-top:2px">Annualised, all trades</div></div>'
+    +'<div class="metric"><div class="metric-label">AVG TRADE CYCLE</div><div class="metric-val">22d</div><div style="font-size:10px;color:#9CA3AF;margin-top:2px">vs 45\u201390d industry</div></div>'
+    +'</div>'
+    +'<div class="g2" style="margin-bottom:16px">'
+    +'<div class="card" style="padding:16px"><div style="font-size:13px;font-weight:600;margin-bottom:14px">Commodity Breakdown</div>'+cmdBars+'</div>'
+    +'<div class="card" style="padding:16px"><div style="font-size:13px;font-weight:600;margin-bottom:14px">Stage Distribution</div>'+stageDist+'</div>'
+    +'</div>'
+    +'<div class="g2" style="margin-bottom:16px">'
+    +'<div class="card" style="padding:16px"><div style="font-size:13px;font-weight:600;margin-bottom:12px">Buyer Concentration</div>'+buyerConc+'</div>'
+    +'<div class="card" style="padding:16px"><div style="font-size:13px;font-weight:600;margin-bottom:12px">IRIS+ Impact Metrics</div>'
+    +'<div class="g2">'
+    +[['Farmers Reached','2,840+','#16A34A'],['Volume Traded','745 MT','#2563EB'],['Countries Active','4','#7C3AED'],['Female Traders','42%','#8B0000']].map(function(x){
+      return '<div style="text-align:center;padding:8px">'
+        +'<div class="mono" style="font-size:22px;font-weight:700;color:'+x[2]+'">'+x[1]+'</div>'
+        +'<div style="font-size:11px;font-weight:600;margin-top:2px">'+x[0]+'</div>'
+        +'</div>';
+    }).join('')
+    +'</div></div></div>';
+}
+
+// ── BUYERS ────────────────────────────────────────────────────────────────────
+function renderBuyers(){
+  const bm={};
+  TRADES.forEach(function(t){
+    if(!bm[t.buyer])bm[t.buyer]={name:t.buyer,country:t.bc,trades:0,value:0,paid:0};
+    bm[t.buyer].trades++;bm[t.buyer].value+=t.cv;
+    if(t.bpay)bm[t.buyer].paid++;
+  });
+  const rows=Object.values(bm).map(function(b){
+    return '<tr>'
+      +'<td style="font-weight:600">'+b.name+'</td>'
+      +'<td style="color:#6B7280">'+b.country+'</td>'
+      +'<td class="mono">'+b.trades+'</td>'
+      +'<td class="mono">'+usd(b.value)+'</td>'
+      +'<td style="color:#16A34A;font-weight:500">'+(b.paid>0?'100% on-time':'None yet')+'</td>'
+      +'<td class="mono">0</td>'
+      +'<td><span class="badge" style="background:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0">'+(b.trades>1?'REPEAT BUYER':'FIRST TIME')+'</span></td>'
+      +'</tr>';
+  }).join('');
+  return '<div style="margin-bottom:14px"><h2 style="font-size:16px;font-weight:700">Buyer Creditworthiness Database</h2>'
+    +'<p style="font-size:11px;color:#6B7280;margin-top:2px">Internal only \u00B7 Proprietary payment performance data \u00B7 Feeds risk scoring</p></div>'
+    +'<div class="card" style="overflow:hidden"><div class="card-head">'+Object.keys(bm).length+' buyers in network</div>'
+    +'<div class="tbl-wrap"><table class="tbl"><thead><tr>'
+    +'<th>BUYER</th><th>COUNTRY</th><th>TRADES</th><th>VALUE</th><th>PAYMENT</th><th>DISPUTES</th><th>STATUS</th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+}
+
+// ── SETTLEMENT (CFO) ──────────────────────────────────────────────────────────
+function renderSettle(){
+  const pend=TRADES.filter(function(t){return t.stage==='DELIVERED'&&!S.cfoOk[t.id];});
+  const done=TRADES.filter(function(t){return t.stage==='SETTLED';});
+
+  const pendCards=pend.map(function(d){
+    const fp=Math.round(d.ff*1.12);
+    const mf=Math.round(d.cv*0.01);
+    const tm=d.cv-fp-mf;
+    const step=S.npStep[d.id]||0;
+    const npSteps=[
+      {day:1,l:'Day 1',act:'Deal Officer contacts buyer directly. Trader also contacts buyer.',c:'#2563EB'},
+      {day:3,l:'Day 3',act:'CEO contacts finance partner to inform of payment delay.',c:'#D97706'},
+      {day:7,l:'Day 7',act:'Formal demand letter issued to buyer via trader\'s lawyer.',c:'#D97706'},
+      {day:14,l:'Day 14',act:'Finance partner and CEO convene. Trader commits to resolution timeline.',c:'#DC2626'},
+      {day:30,l:'Day 30',act:'Formal dispute opened. Options: trader own funds, commercial dispute resolution, or insurance claim.',c:'#991B1B'},
+    ];
+    const npHtml=step>0?'<div class="card" style="padding:16px;margin-top:14px;border-left:4px solid #DC2626">'
+      +'<div style="font-size:13px;font-weight:700;color:#DC2626;margin-bottom:10px">\u26A0 Non-Payment Protocol \u2014 '+d.id+'</div>'
+      +'<p style="font-size:11px;color:#6B7280;margin-bottom:14px;line-height:1.5">Finance partner principal and fee must be returned in full from whatever source. Trader equity is the first-loss position.</p>'
+      +npSteps.map(function(s){
+        return '<div class="np-step" style="background:'+(step>=s.day?s.c+'15':'#F9FAFB')+';border-color:'+(step>=s.day?s.c+'40':'#E5E7EB')+'">'
+          +'<div style="width:34px;height:34px;border-radius:50%;background:'+(step>=s.day?s.c:'#E5E7EB')+';color:'+(step>=s.day?'#fff':'#9CA3AF')+';font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+(step>=s.day?'\u2713':s.day)+'</div>'
+          +'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:'+(step>=s.day?s.c:'#9CA3AF')+';margin-bottom:2px">'+s.l+'</div>'
+          +'<p style="font-size:11px;color:#6B7280;line-height:1.4">'+s.act+'</p></div>'
+          +(step<s.day?'<button class="btn btn-sm" style="background:'+s.c+';color:#fff;flex-shrink:0" onclick="npAction(\''+d.id+'\','+s.day+')">Escalate</button>':'')
+          +'</div>';
+      }).join('')
+      +'</div>':'';
+
+    return '<div class="card" style="padding:16px;margin-bottom:14px;border-left:4px solid #D97706">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">'
+      +'<div><span class="mono" style="font-size:13px;font-weight:700;color:#8B0000">'+d.id+'</span>'
+      +'<span style="margin-left:10px;font-size:11px;color:#6B7280">'+d.tr+' \u2192 '+d.buyer+'</span></div>'
+      +sbdg(d.stage)+'</div>'
+      +'<div class="g3" style="margin-bottom:14px">'
+      +'<div style="background:#F8FAFC;border-radius:7px;padding:11px"><div style="font-size:9px;color:#9CA3AF;margin-bottom:3px">BUYER PAYMENT DUE</div><div class="mono" style="font-size:16px;font-weight:600">'+usd(d.cv)+'</div></div>'
+      +'<div style="background:#F0FDF4;border-radius:7px;padding:11px"><div style="font-size:9px;color:#16A34A;margin-bottom:3px">FINANCE PARTNER (1st)</div><div class="mono" style="font-size:16px;font-weight:600;color:#16A34A">'+usd(fp)+'</div></div>'
+      +'<div style="background:#EFF6FF;border-radius:7px;padding:11px"><div style="font-size:9px;color:#2563EB;margin-bottom:3px">TRADER MARGIN (last)</div><div class="mono" style="font-size:16px;font-weight:600;color:#2563EB">'+usd(tm)+'</div></div>'
+      +'</div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+      +'<button class="btn btn-success" onclick="cfoConfirm(\''+d.id+'\')">\u2713 Confirm Payment & Release Waterfall</button>'
+      +'<button class="btn btn-danger btn-sm" onclick="npAction(\''+d.id+'\',1)">\u26A0 Open Non-Payment Protocol</button>'
+      +'</div>'
+      +npHtml
+      +'</div>';
+  }).join('');
+
+  const doneCards=done.map(function(d){
+    return '<div class="card" style="padding:14px;margin-bottom:10px;border-left:4px solid #16A34A;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
+      +'<div><span class="mono" style="font-size:12px;font-weight:700;color:#8B0000">'+d.id+'</span>'
+      +'<span style="margin-left:10px;font-size:11px;color:#6B7280">'+d.tr+'</span>'
+      +(d.bpd?'<div style="font-size:10px;color:#9CA3AF;margin-top:3px">Paid '+d.bpd+' \u00B7 Fee '+usd(d.mf)+' \u00B7 FP '+usd(d.fpr)+' \u00B7 Trader '+usd(d.tm)+'</div>':'')
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:8px"><span class="mono" style="font-size:13px;font-weight:700">'+usd(d.bpay)+'</span>'+sbdg(d.stage)+'</div>'
+      +'</div>';
+  }).join('');
+
+  return '<div>'
+    +'<div style="margin-bottom:14px"><h2 style="font-size:16px;font-weight:700">Settlement & Waterfall \u2014 CFO</h2>'
+    +'<p style="font-size:11px;color:#6B7280;margin-top:2px">Confirm payments \u00B7 Authorise waterfall release \u00B7 Monitor non-payment protocol</p></div>'
+    +'<div class="alert alert-danger" style="display:flex;gap:12px;align-items:flex-start;margin-bottom:16px">'
+    +'<span style="font-size:18px;flex-shrink:0">\u2B22</span>'
+    +'<div><div style="font-weight:700;font-size:12px;margin-bottom:3px">NON-NEGOTIABLE WATERFALL RULE</div>'
+    +'<p style="font-size:11px;line-height:1.5">Finance partner is ALWAYS paid first \u2014 full principal + agreed return. Trader margin released only after finance partner position is fully settled. Structurally enforced by TradeVault.</p></div>'
+    +'</div>'
+    +pendCards+doneCards
+    +'</div>';
+}
+
+// ── FP CRM ────────────────────────────────────────────────────────────────────
+function renderFPCRM(){
+  const tv=FPC.reduce(function(a,p){return a+p.capital;},0);
+  const tr2=FPC.reduce(function(a,p){return a+p.returned;},0);
+  const cards=FPC.map(function(p){
+    const hc={green:'#16A34A',amber:'#D97706',red:'#DC2626'}[p.health]||'#9CA3AF';
+    const hbg={green:'#F0FDF4',amber:'#FFFBEB',red:'#FEF2F2'}[p.health]||'#F9FAFB';
+    const isOverdue=new Date(p.nextCall)<new Date();
+    return '<div class="crm-card">'
+      +'<div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:14px;flex-wrap:wrap">'
+      +'<div style="width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#C9943A,#8B6914);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:18px;flex-shrink:0">'+p.name.charAt(0)+'</div>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+      +'<span style="font-size:14px;font-weight:700">'+p.name+'</span>'
+      +(p.onboarding
+        ?'<span class="badge" style="background:#FFFBEB;color:#D97706;border:1px solid #FDE68A">ONBOARDING</span>'
+        :'<span class="badge" style="background:'+hbg+';color:'+hc+';border:1px solid '+hc+'30">\u25CF '+(p.health==='green'?'Active Partner':'Needs Attention')+'</span>'
+      )
+      +'</div>'
+      +'<div style="font-size:11px;color:#6B7280;margin-top:3px">'+p.contact+' \u00B7 '+p.email+'</div>'
+      +'</div>'
+      +'<div style="text-align:right;flex-shrink:0">'
+      +'<div style="font-size:10px;color:#9CA3AF;margin-bottom:3px">NEXT INTERACTION</div>'
+      +'<div style="font-size:12px;font-weight:600;color:'+(isOverdue?'#DC2626':'#111827')+'">'+p.nextCall+(isOverdue?' \u26A0':'')+'</div>'
+      +'<button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="notify(\'Call reminder set for '+p.contact+'.\')">Schedule Call</button>'
+      +'</div></div>'
+      +(!p.onboarding
+        ?'<div class="g4" style="margin-bottom:12px">'
+          +'<div style="background:#F8FAFC;border-radius:6px;padding:10px"><div style="font-size:9px;color:#9CA3AF;margin-bottom:3px">TOTAL DEALS</div><div class="mono" style="font-size:16px;font-weight:600">'+p.trades+'</div></div>'
+          +'<div style="background:#F8FAFC;border-radius:6px;padding:10px"><div style="font-size:9px;color:#9CA3AF;margin-bottom:3px">APPROVAL RATE</div><div class="mono" style="font-size:16px;font-weight:600;color:#16A34A">'+(p.trades>0?Math.round(p.approved/p.trades*100)+'%':'—')+'</div></div>'
+          +'<div style="background:#F8FAFC;border-radius:6px;padding:10px"><div style="font-size:9px;color:#9CA3AF;margin-bottom:3px">CAPITAL DEPLOYED</div><div class="mono" style="font-size:14px;font-weight:600">'+usd(p.capital)+'</div></div>'
+          +'<div style="background:#F8FAFC;border-radius:6px;padding:10px"><div style="font-size:9px;color:#9CA3AF;margin-bottom:3px">AVG REVIEW TIME</div><div class="mono" style="font-size:16px;font-weight:600">'+(p.avgReview||'—')+'d</div></div>'
+          +'</div>'
+          +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+          +'<button class="btn btn-secondary btn-sm" onclick="notify(\'Opening deal history for '+p.name+'...\')">Deal History</button>'
+          +'<button class="btn btn-secondary btn-sm" onclick="notify(\'Loading portfolio summary...\')">Portfolio Summary</button>'
+          +'<button class="btn btn-navy btn-sm" onclick="notify(\'New deal notification sent to '+p.contact+'.\')">Send New Deal</button>'
+          +'</div>'
+        :'<div class="alert alert-warning" style="margin-bottom:10px">'
+          +'<div style="font-weight:700;margin-bottom:3px">Onboarding In Progress</div>'
+          +'<p style="font-size:11px">5 steps: Due Diligence \u2192 Framework Agreement \u2192 Portal Access \u2192 Escrow Bank \u2192 First Deal Briefing</p></div>'
+          +'<button class="btn btn-primary btn-sm" onclick="notify(\'Onboarding checklist sent to '+p.contact+'.\')">Continue Onboarding \u2192</button>'
+      )
+      +'</div>';
+  }).join('');
+  return '<div>'
+    +'<div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
+    +'<div><h2 style="font-size:16px;font-weight:700">Finance Partner CRM</h2>'
+    +'<p style="font-size:11px;color:#6B7280;margin-top:2px">Relationship management \u00B7 Approval metrics \u00B7 Capital tracking</p></div>'
+    +'<button class="btn btn-primary btn-sm" onclick="notify(\'Opening new partner onboarding form.\',\'info\')">+ Onboard New Partner</button>'
+    +'</div>'
+    +'<div class="g3" style="margin-bottom:16px">'
+    +'<div class="metric"><div class="metric-label">ACTIVE PARTNERS</div><div class="metric-val" style="color:#0D1F3C">'+FPC.filter(function(p){return !p.onboarding;}).length+'</div></div>'
+    +'<div class="metric"><div class="metric-label">TOTAL CAPITAL DEPLOYED</div><div class="metric-val" style="font-size:16px;color:#7C3AED">'+usd(tv)+'</div></div>'
+    +'<div class="metric"><div class="metric-label">TOTAL RETURNED</div><div class="metric-val" style="font-size:16px;color:#16A34A">'+usd(tr2)+'</div></div>'
+    +'</div>'
+    +cards+'</div>';
+}
+
+// ── TRADER PORTAL ─────────────────────────────────────────────────────────────
+function renderTrader(){
+  const MY=TRADES[0];
+  const TN=[{id:'status',i:'\u25CE',l:'Application Status'},{id:'apply',i:'+',l:'New Application'},{id:'docs',i:'\u25C8',l:'Documents'},{id:'settle',i:'\u2B22',l:'Settlement'}];
+  const STEPS=['SUBMITTED','VALIDATED','FUNDED','PROCURING','DELIVERED','SETTLED'];
+  const ci=Math.max(0,STEPS.indexOf(MY.stage));
+  const sec=S.trSec;
+  const stepBar='<div class="step-wrap" style="margin-bottom:22px">'
+    +STEPS.map(function(st,i){
+      const done=i<ci; const cur=i===ci; const cfg=ST[st];
+      return '<div style="display:flex;align-items:center;flex:'+(i<STEPS.length-1?1:'none')+';">'
+        +'<div class="step-item">'
+        +'<div class="step-dot" style="background:'+(done?'#16A34A':cur?'#8B0000':'#F3F4F6')+';color:'+(done||cur?'#fff':'#9CA3AF')+';border:2px solid '+(done?'#16A34A':cur?'#8B0000':'#E5E7EB')+';box-shadow:'+(cur?'0 0 0 3px rgba(139,0,0,.15)':'none')+';">'+(done?'\u2713':(i+1))+'</div>'
+        +'<span class="step-label" style="color:'+(done?'#16A34A':cur?'#8B0000':'#9CA3AF')+'">'+cfg.l+'</span>'
+        +'</div>'
+        +(i<STEPS.length-1?'<div class="step-line" style="background:'+(done?'#16A34A':'#E5E7EB')+'"></div>':'')
+        +'</div>';
+    }).join('')
+    +'</div>';
+
+  return '<div class="app">'
+    +'<div id="sb" class="sb" style="background:#fff;border-right:1px solid var(--bdr)">'
+    +'<button class="sb-close" style="color:#9CA3AF" onclick="closeSb()">\u2715</button>'
+    +'<div class="sb-brand" style="border-bottom:1px solid var(--bdr)">'
+    +'<div class="logo-box">T</div>'
+    +'<div><div style="color:#111827;font-size:13px;font-weight:600">TradeAxis</div>'
+    +'<div style="color:#9CA3AF;font-size:9px">Trader Portal</div></div></div>'
+    +'<nav class="sb-nav">'
+    +TN.map(function(n){
+      return '<button class="nb '+(sec===n.id?'on':'')+'" style="color:'+(sec===n.id?'#8B0000':'#4B5563')+';background:'+(sec===n.id?'#FFF0F0':'transparent')+';border-color:'+(sec===n.id?'#FFCDD2':'transparent')+'" onclick="go(\'trs\',\''+n.id+'\')">'
+        +'<span class="nb-icon">'+n.i+'</span>'+n.l+'</button>';
+    }).join('')
+    +'</nav>'
+    +'<div class="sb-user" style="border-top:1px solid var(--bdr)">'
+    +'<div class="av" style="background:#1B2B4D">WC</div>'
+    +'<div><div style="color:#111827;font-size:11px;font-weight:500">Wenchi Cashew Alliance</div>'
+    +'<div style="color:#9CA3AF;font-size:10px">TR-0031</div></div>'
+    +'<button class="logout-btn" style="color:#9CA3AF" onclick="go(\'role\',null)">\u23CF</button>'
+    +'</div></div>'
+    +'<div class="main">'
+    +'<div class="topbar">'
+    +'<div class="topbar-left"><button class="ham-btn" onclick="openSb()">\u2630</button>'
+    +'<div style="font-size:14px;font-weight:600">'+(TN.find(function(n){return n.id===sec;})||{l:''}).l+'</div></div>'
+    +'<div style="display:flex;gap:8px;align-items:center">'
+    +'<span class="mono" style="font-size:12px;font-weight:700;color:#8B0000">'+MY.id+'</span>'+sbdg(MY.stage)
+    +'</div></div>'
+    +'<div class="content fade-in">'
+    +(sec==='status'
+      ?'<div class="card" style="padding:20px;margin-bottom:14px">'
+        +'<div style="font-size:14px;font-weight:700;margin-bottom:4px">Application Status Tracker</div>'
+        +'<p style="font-size:11px;color:#6B7280;margin-bottom:18px">'+MY.id+' \u00B7 '+MY.cmd+' Grade '+MY.gr+' \u00B7 '+mt(MY.vol)+' \u00B7 '+MY.buyer+'</p>'
+        +stepBar
+        +'<div class="alert alert-warning" style="margin-bottom:0">'
+        +'<div style="font-weight:700;margin-bottom:3px">Stage: '+ST[MY.stage].l+'</div>'
+        +'<p style="font-size:11px;line-height:1.5">Your application is under review. Deal Officer is verifying KYC documents and offtake contract. Expected: 5 business days.</p>'
+        +'</div></div>'
+        +'<div class="card" style="padding:16px"><div style="font-size:13px;font-weight:600;margin-bottom:12px">Deal Summary</div>'
+        +'<div class="g3">'
+        +[['Commodity',MY.cmd+' Gr.'+MY.gr],['Volume',mt(MY.vol)],['Contract Value',usd(MY.cv)],['Your Equity',usd(MY.eq)],['Finance Facility',usd(MY.ff)],['Deadline',MY.dl],['Buyer',MY.buyer],['Delivery',MY.dp],['Payment Terms',MY.pt+' days']].map(function(x){
+          return '<div style="background:#F8FAFC;border-radius:7px;padding:10px">'
+            +'<div style="font-size:9px;color:#9CA3AF;font-weight:600;margin-bottom:3px">'+x[0].toUpperCase()+'</div>'
+            +'<div style="font-size:11px;font-weight:500">'+x[1]+'</div></div>';
+        }).join('')
+        +'</div></div>'
+      :sec==='apply'?renderTraderForm()
+      :sec==='docs'
+        ?'<div class="card" style="overflow:hidden"><div class="card-head">Documents \u2014 '+MY.id+'</div>'
+          +[{n:'Certificate of Incorporation',req:true,st:'ACCEPTED'},{n:'TIN Certificate',req:true,st:'ACCEPTED'},{n:'Director ID',req:true,st:'UNDER REVIEW'},{n:'Signed Offtake Contract',req:true,st:'PENDING'},{n:'Export Licence',req:false,st:'PENDING'},{n:'Bank Account Proof',req:true,st:'PENDING'}].map(function(doc,i){
+            const sc={ACCEPTED:'#16A34A',PENDING:'#9CA3AF','UNDER REVIEW':'#D97706'}[doc.st];
+            const dbg={ACCEPTED:'#F0FDF4',PENDING:'#F9FAFB','UNDER REVIEW':'#FFFBEB'}[doc.st];
+            const db2={ACCEPTED:'#BBF7D0',PENDING:'#E5E7EB','UNDER REVIEW':'#FDE68A'}[doc.st];
+            return '<div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #F3F4F6;background:'+(i%2===0?'#fff':'#FAFBFC')+';flex-wrap:wrap">'
+              +'<span style="font-size:14px;color:#9CA3AF">\u25C8</span>'
+              +'<div style="flex:1;min-width:120px;font-size:11px;font-weight:500">'+doc.n+(doc.req?' <span style="color:#DC2626">*</span>':'')+'</div>'
+              +'<span class="badge" style="background:'+dbg+';color:'+sc+';border:1px solid '+db2+'">'+doc.st+'</span>'
+              +(doc.st==='PENDING'?'<button class="btn btn-primary btn-sm">Upload</button>':'')
+              +'</div>';
+          }).join('')
+          +'</div>'
+        :'<div class="card" style="padding:40px;text-align:center">'
+          +'<div style="font-size:28px;margin-bottom:10px">\u2B22</div>'
+          +'<div style="font-size:14px;font-weight:600;margin-bottom:6px">Settlement Records</div>'
+          +'<p style="font-size:11px;color:#6B7280;line-height:1.6;max-width:300px;margin:0 auto">Settlement records and waterfall summary appear after trade closure.</p>'
+          +'</div>'
+    )
+    +'</div></div></div>';
+}
+
+function renderTraderForm(){
+  const st=S.trStep;
+  return '<div class="card" style="padding:18px">'
+    +'<div class="tabs">'
+    +['Account & KYC','Offtake Contract','Equity & Terms','Submit'].map(function(l,i){
+      return '<button class="tab '+(st===i+1?'on':'')+'" onclick="go(\'trstep\','+(i+1)+')">'+( i+1)+'. '+l+'</button>';
+    }).join('')
+    +'</div>'
+    +(st===1
+      ?'<div class="g2">'+[['Company Name *','text','Registered company name'],['Registrar Number *','text','Ghana Registrar General number'],['TIN Number *','text','GRA Tax ID'],['Registered Address *','text','Official address'],['Contact Name *','text','Named responsible individual'],['Contact Phone *','tel','+233xxxxxxxx']].map(function(f){
+          return '<div><label>'+f[0]+'</label><input type="'+f[1]+'" placeholder="'+f[2]+'"></div>';
+        }).join('')+'</div>'
+      :st===2
+        ?'<div class="g2"><div><label>Commodity *</label><select>'+'cashew,shea,sesame,sorghum,soya'.split(',').map(function(c){return '<option>'+c+'</option>';}).join('')+'</select></div>'
+          +'<div><label>Grade *</label><select>'+'Grade A,Grade B,Grade C'.split(',').map(function(g){return '<option>'+g+'</option>';}).join('')+'</select></div>'
+          +[['Volume (MT) *','number','e.g. 120'],['Buyer Name *','text','Full legal name'],['Buyer Country *','text',''],['Price/MT (USD) *','number','e.g. 1450'],['Delivery Point *','text','e.g. Tema Port'],['Deadline *','date','']].map(function(f){
+            return '<div><label>'+f[0]+'</label><input type="'+f[1]+'" placeholder="'+f[2]+'"></div>';
+          }).join('')+'</div>'
+        :st===3
+          ?'<div>'
+            +'<div class="alert alert-info" style="margin-bottom:14px"><div style="font-weight:700;margin-bottom:3px">Minimum Equity: 35%</div>'
+            +'<p style="font-size:11px;line-height:1.5">Minimum 35% of procurement cost as equity into TradeVault escrow within 5 business days of approval. Finance partner is paid first from any proceeds.</p></div>'
+            +'<div class="g2">'
+            +'<div><label>Equity Commitment % *</label><select>'+'35% (minimum),40%,45%,50%'.split(',').map(function(p){return '<option>'+p+'</option>';}).join('')+'</select></div>'
+            +'<div><label>Payment Terms *</label><select>'+'30 days,45 days,60 days'.split(',').map(function(p){return '<option>'+p+'</option>';}).join('')+'</select></div>'
+            +'</div></div>'
+          :'<div>'
+            +'<div class="alert alert-success" style="margin-bottom:14px"><div style="font-weight:700;margin-bottom:3px">Ready to Submit</div>'
+            +'<p style="font-size:11px;line-height:1.5">By submitting, you confirm all data is accurate, your equity commitment is binding, and you have no active sanctions or outstanding commodity disputes.</p></div>'
+            +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+            +'<button class="btn btn-primary" onclick="submitApp()">Submit Application</button>'
+            +'<button class="btn btn-secondary">Save Draft</button>'
+            +'</div></div>'
+    )
+    +'<div style="display:flex;justify-content:space-between;margin-top:18px;padding-top:14px;border-top:1px solid #F3F4F6">'
+    +'<button class="btn btn-secondary btn-sm" onclick="go(\'trstep\','+(Math.max(1,st-1))+')" '+(st===1?'style="opacity:.4;pointer-events:none"':'')+'">\u2190 Previous</button>'
+    +(st<4?'<button class="btn btn-primary btn-sm" onclick="go(\'trstep\','+(st+1)+')">Next \u2192</button>':'')
+    +'</div></div>';
+}
+
+// ── FINANCE PARTNER PORTAL ────────────────────────────────────────────────────
+function renderFP(){
+  const FN=[
+    {id:'inbox',i:'\u25CE',l:'Deal Inbox'},
+    {id:'portfolio',i:'\u25C8',l:'My Portfolio'},
+    {id:'reports',i:'\u2B22',l:'Settlement Reports'},
+    {id:'onboarding',i:'\u25A6',l:'Onboarding'}
+  ];
+  const sec=S.fpSec;
+  const forReview=TRADES.filter(function(t){return t.stage==='FINANCE_REVIEW';});
+  const myPortfolio=TRADES.filter(function(t){return t.fp==='Ecobank DFI Fund'&&t.stage!=='FINANCE_REVIEW';});
+
+  const inboxContent=(function(){
+    if(!forReview.length){
+      return '<div class="card" style="padding:40px;text-align:center;color:#9CA3AF">'
+        +'<div style="font-size:28px;margin-bottom:10px">\u25CE</div>'
+        +'<div style="font-size:14px;font-weight:600">No deals awaiting decision</div>'
+        +'</div>';
+    }
+    return forReview.map(function(d){
+      const dec=S.decisions[d.id];
+      const cm=CMD[d.cmd]||{c:'#888',i:'\u25CF'};
+      const rb=d.rb;
+      const tr2=rb?Object.values(rb).reduce(function(a,v){return a+v;},0):0;
+      const rc=tr2>=75?'#16A34A':tr2>=55?'#D97706':'#DC2626';
+      const fp2=Math.round(d.ff*1.12); const mf2=Math.round(d.cv*0.01); const tm2=d.cv-fp2-mf2;
+      const dimMx={buyer_risk:25,trader_risk:25,commodity_price_risk:20,sourcing_supply_risk:15,logistics_delivery_risk:15};
+      const dimLbl={buyer_risk:'Buyer',trader_risk:'Trader',commodity_price_risk:'Commodity',sourcing_supply_risk:'Sourcing',logistics_delivery_risk:'Logistics'};
+      const riskBars=rb?Object.entries(rb).map(function(e){
+        const dc=e[1]/dimMx[e[0]]>=.7?'#16A34A':e[1]/dimMx[e[0]]>=.45?'#D97706':'#DC2626';
+        return '<div style="text-align:center">'
+          +'<div class="mono" style="font-size:15px;font-weight:700;color:'+dc+'">'+e[1]+'/'+dimMx[e[0]]+'</div>'
+          +'<div style="font-size:9px;color:#9CA3AF">'+dimLbl[e[0]]+'</div></div>';
+      }).join(''):'';
+      return '<div class="card" style="padding:18px;margin-bottom:18px;border-top:4px solid #C9943A">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:8px">'
+        +'<div><div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap">'
+        +'<span class="mono" style="font-size:14px;font-weight:700;color:#8B0000">'+d.id+'</span>'+sbdg(d.stage)+' '+rbdg(d.risk)+'</div>'
+        +'<div style="font-size:11px;color:#6B7280">'+d.tr+'</div></div>'
+        +'<span class="badge" style="background:'+cm.c+'15;color:'+cm.c+';border:none">'+cm.i+' '+d.cmd+' Gr.'+d.gr+'</span></div>'
+        +'<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px">'
+        +[['Facility',usd(d.ff)],['Contract',usd(d.cv)],['Equity',usd(d.eq)],['Volume',mt(d.vol)],['Buyer',d.buyer],['Country',d.bc],['Deadline',d.dl],['Delivery',d.dp]].map(function(x){
+          return '<div style="background:#F8FAFC;border-radius:6px;padding:8px 10px">'
+            +'<div style="font-size:9px;color:#9CA3AF;font-weight:600;margin-bottom:2px">'+x[0].toUpperCase()+'</div>'
+            +'<div style="font-size:11px;font-weight:500">'+x[1]+'</div></div>';
+        }).join('')
+        +'</div>'
+        +(rb?'<div style="background:#F8FAFC;border-radius:8px;padding:14px;margin-bottom:14px">'
+          +'<div style="font-size:9px;font-weight:700;color:#6B7280;letter-spacing:.06em;margin-bottom:10px">MIZIBA RISK ASSESSMENT</div>'
+          +'<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">'
+          +riskBars
+          +'<div style="border-left:1px solid #E5E7EB;padding-left:12px;text-align:center">'
+          +'<div class="mono" style="font-size:20px;font-weight:700;color:'+rc+'">'+tr2+'/100</div>'
+          +'<div style="font-size:9px;color:#9CA3AF">TOTAL</div></div>'
+          +'</div></div>':'')
+        +'<div style="background:#0D1F3C;border-radius:8px;padding:14px;margin-bottom:14px">'
+        +'<div style="font-size:9px;font-weight:700;color:#94A3B8;letter-spacing:.06em;margin-bottom:10px">WATERFALL SETTLEMENT \u2014 TradeVault Enforced</div>'
+        +[{n:1,l:'Finance Partner (you)',d2:'Principal + agreed return \u2014 paid first',am:usd(fp2),c:'#C9943A'},
+          {n:2,l:'Miziba Facilitation Fee',d2:'1% structuring + 0.5\u20131% settlement',am:usd(mf2),c:'#94A3B8'},
+          {n:3,l:'Trader Margin',d2:'Residual \u2014 released last',am:'Residual',c:'#64748B'}].map(function(w){
+          return '<div class="wf-tier">'
+            +'<div style="width:22px;height:22px;border-radius:50%;background:'+w.c+';color:'+(w.n===3?'#fff':'#0D1F3C')+';font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+w.n+'</div>'
+            +'<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:600;color:'+w.c+'">'+w.l+'</div>'
+            +'<div style="font-size:10px;color:#64748B">'+w.d2+'</div></div>'
+            +'<span class="mono" style="font-size:11px;font-weight:600;color:'+w.c+';white-space:nowrap">'+w.am+'</span>'
+            +'</div>';
+        }).join('')
+        +'</div>'
+        +(!dec
+          ?'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+            +'<button class="btn btn-success" style="flex:1;min-width:160px" onclick="decide(\''+d.id+'\',\'approve\')">\u2713 Approve Facility \u2014 '+usd(d.ff)+'</button>'
+            +'<button class="btn btn-danger" onclick="decide(\''+d.id+'\',\'decline\')">\u2715 Decline</button>'
+            +'<button class="btn btn-warning btn-sm" onclick="notify(\'Info request sent to Miziba Deal Officer.\',\'warning\')">Request Info</button>'
+            +'</div>'
+          :'<div class="alert '+(dec==='approve'?'alert-success':'alert-danger')+'" style="margin-bottom:0;font-size:12px;font-weight:500">'
+            +(dec==='approve'?'\u2713 Facility approved. Escrow instruction sent to TradeVault.':'\u2715 Facility declined. Deal Officer notified.')+'</div>'
+        )
+        +'</div>';
+    }).join('');
+  })();
+
+  return '<div class="app">'
+    +'<div id="sb" class="sb" style="background:#1B2B4D">'
+    +'<button class="sb-close" onclick="closeSb()">\u2715</button>'
+    +'<div class="sb-brand">'
+    +'<div class="logo-box" style="background:linear-gradient(135deg,#C9943A,#8B6914)">E</div>'
+    +'<div><div class="sb-title">Ecobank DFI Fund</div><div class="sb-ver">Finance Partner Portal</div></div>'
+    +'</div>'
+    +'<nav class="sb-nav">'
+    +FN.map(function(n){
+      return '<button class="nb '+(sec===n.id?'on':'')+'" style="'+(sec===n.id?'background:rgba(201,148,58,.2);color:#E8B96A;border-color:rgba(201,148,58,.4)':'')+'" onclick="go(\'fps\',\''+n.id+'\')">'
+        +'<span class="nb-icon">'+n.i+'</span>'+n.l+'</button>';
+    }).join('')
+    +'</nav>'
+    +'<div class="sb-user"><div class="av" style="background:#C9943A">RM</div>'
+    +'<div><div style="color:#E2E8F0;font-size:11px;font-weight:500">Relationship Manager</div>'
+    +'<div style="color:#64748B;font-size:10px">Finance Partner</div></div>'
+    +'<button class="logout-btn" onclick="go(\'role\',null)">\u23CF</button></div>'
+    +'</div>'
+    +'<div class="main">'
+    +'<div class="topbar">'
+    +'<div class="topbar-left"><button class="ham-btn" onclick="openSb()">\u2630</button>'
+    +'<div style="font-size:14px;font-weight:600">'+(FN.find(function(n){return n.id===sec;})||{l:''}).l+'</div></div>'
+    +'<span class="badge" style="background:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0">\u25CF Live</span>'
+    +'</div>'
+    +'<div class="content fade-in">'
+    +(sec==='inbox'?inboxContent
+      :sec==='portfolio'
+        ?'<div style="margin-bottom:14px"><h2 style="font-size:16px;font-weight:700">My Portfolio</h2></div>'
+          +'<div class="g3" style="margin-bottom:16px">'
+          +'<div class="metric"><div class="metric-label">TOTAL DEALS</div><div class="metric-val">'+myPortfolio.length+'</div></div>'
+          +'<div class="metric"><div class="metric-label">CAPITAL DEPLOYED</div><div class="metric-val" style="font-size:16px;color:#7C3AED">'+usd(myPortfolio.reduce(function(a,t){return a+t.ff;},0))+'</div></div>'
+          +'<div class="metric"><div class="metric-label">APPROVAL RATE</div><div class="metric-val" style="color:#16A34A">100%</div></div>'
+          +'</div>'
+          +myPortfolio.map(function(d){
+            return '<div class="card" style="padding:14px;margin-bottom:10px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">'
+              +'<div style="flex:1;min-width:0"><div style="display:flex;gap:8px;align-items:center;margin-bottom:3px;flex-wrap:wrap">'
+              +'<span class="mono" style="font-size:12px;font-weight:700;color:#8B0000">'+d.id+'</span>'+sbdg(d.stage)+'</div>'
+              +'<div style="font-size:11px;color:#6B7280">'+d.tr+' \u00B7 '+d.cmd+' \u00B7 '+mt(d.vol)+'</div></div>'
+              +'<div style="text-align:right"><div class="mono" style="font-size:14px;font-weight:700">'+usd(d.ff)+'</div>'
+              +'<div style="font-size:10px;color:#9CA3AF">Facility</div></div>'+rbdg(d.risk)+'</div>';
+          }).join('')
+        :sec==='reports'
+          ?'<div class="card" style="padding:40px;text-align:center"><div style="font-size:28px;margin-bottom:10px">\u2B22</div>'
+            +'<div style="font-size:14px;font-weight:600;margin-bottom:6px">Settlement Reports</div>'
+            +'<p style="font-size:11px;color:#6B7280;line-height:1.6">Reports appear once trades reach SETTLED stage. Includes TRR + waterfall breakdown + IRIS+ impact metrics.</p></div>'
+          :sec==='onboarding'?renderFPOnboarding():''
+    )
+    +'</div></div></div>';
+}
+
+// ── FP ONBOARDING ─────────────────────────────────────────────────────────────
+function renderFPOnboarding(){
+  const step=S.fpOnbStep||1;
+  const steps=[
+    {n:1,l:'Due Diligence on Miziba',desc:"Finance partner reviews Miziba's operations: portfolio track record (8 trades, 0% default), operational documentation, KYC on JNI AGRI Limited, Certificate of Incorporation, audited financials. Site visit to a TradePoint strongly encouraged.",action:'Request Miziba Due Diligence Pack'},
+    {n:2,l:'Master Framework Agreement',desc:'Execution of Master Framework Agreement between finance partner and Miziba. Governs: eligible deal criteria, min/max deal size, standard term sheet terms, waterfall priority confirmation, reporting obligations, dispute resolution.',action:'Review & Execute Framework Agreement'},
+    {n:3,l:'Portal Access Setup',desc:'Finance partner nominates 2\u20133 users: primary reviewer + backup + senior approver. Ops Admin creates accounts with 2FA. Portal tour conducted by Deal Officer.',action:'Nominate Portal Users'},
+    {n:4,l:'Escrow Bank Account Setup',desc:'Finance partner payment details registered: bank name, SWIFT code, account number, account name, corresponding bank (for USD wires). Test payment if required.',action:'Register Bank Account Details'},
+    {n:5,l:'First Deal Briefing',desc:'Deal Officer walks finance partner through the Bridge deal flow, explains Finance Data Package sections, clarifies waterfall mechanics, addresses credit committee questions. Typically a 1-hour call.',action:'Schedule First Deal Briefing'},
+  ];
+  const stepCards=steps.map(function(s){
+    return '<div class="card" style="padding:16px;margin-bottom:12px;border-left:4px solid '+(step>s.n?'#16A34A':step===s.n?'#C9943A':'#E5E7EB')+'">'
+      +'<div style="display:flex;align-items:flex-start;gap:12px">'
+      +'<div style="width:28px;height:28px;border-radius:50%;background:'+(step>s.n?'#16A34A':step===s.n?'#C9943A':'#E5E7EB')+';color:'+(step>s.n||step===s.n?'#fff':'#9CA3AF')+';font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+(step>s.n?'\u2713':s.n)+'</div>'
+      +'<div style="flex:1">'
+      +'<div style="font-size:13px;font-weight:600;margin-bottom:4px;color:'+(step<s.n?'#9CA3AF':'#111827')+'">'+s.l+'</div>'
+      +'<p style="font-size:11px;color:#6B7280;margin-bottom:'+(step===s.n?10:0)+'px;line-height:1.5">'+s.desc+'</p>'
+      +(step===s.n?'<button class="btn btn-primary btn-sm" onclick="S.fpOnbStep='+(s.n+1)+';render();notify(\'Step '+s.n+' complete.\')">'+s.action+' \u2192</button>':'')
+      +(step>s.n?'<span class="badge" style="background:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0">\u2713 Completed</span>':'')
+      +'</div></div></div>';
+  }).join('');
+  return '<div>'
+    +'<div style="margin-bottom:16px"><h2 style="font-size:16px;font-weight:700">Finance Partner Onboarding</h2>'
+    +'<p style="font-size:11px;color:#6B7280;margin-top:2px">One-time process to establish the relationship framework before accessing deals or deploying capital.</p></div>'
+    +'<div class="card" style="padding:16px;margin-bottom:16px">'
+    +'<div style="display:flex;justify-content:space-between;margin-bottom:8px">'
+    +'<span style="font-size:12px;font-weight:600">Onboarding Progress</span>'
+    +'<span class="mono" style="font-weight:700;color:'+(step>5?'#16A34A':'#D97706')+'">'+Math.min(step-1,5)+'/5 completed</span>'
+    +'</div>'
+    +'<div class="pbar" style="height:8px"><div class="pbar-fill" style="width:'+Math.round(Math.min(step-1,5)/5*100)+'%;background:'+(step>5?'#16A34A':'#D97706')+'"></div></div>'
+    +'</div>'
+    +stepCards
+    +(step>5?'<div class="alert alert-success"><div style="font-weight:700;margin-bottom:4px">\u2713 Onboarding Complete</div><p style="font-size:11px">All 5 steps complete. Full access to deal inbox and capital deployment now active.</p></div>':'')
+    +'</div>';
+}
+
+render();
+
+</script>
+</body>
+</html>
