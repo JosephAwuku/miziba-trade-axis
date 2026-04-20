@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { NavigationProvider } from "@/lib/contexts/NavigationContext";
 
 const ibmPlexSans = IBM_Plex_Sans({
   variable: "--font-ibm-plex-sans",
@@ -27,7 +28,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${ibmPlexSans.variable} ${jetbrainsMono.variable}`}>
       <body className={ibmPlexSans.className}>
-        {children}
+        <NavigationProvider>
+          {children}
+        </NavigationProvider>
       </body>
     </html>
   );

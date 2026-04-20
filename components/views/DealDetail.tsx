@@ -4,9 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { Trade, RiskAssessment, ValidationChecklist } from '@/lib/types';
 import { ST as stageConfig, CMD as commodityConfig } from '@/lib/data';
 import { usd, mt } from '@/lib/utils';
-import { Badge, Button, Card, ProgressBar } from '../ui';
+import { Badge, Button, Card, ProgressBar, CustomSelect } from '../ui';
 import Settlement from './Settlement';
 import RiskAssessmentTool from '../RiskAssessmentTool';
+import FDPPreview from '../FDPPreview';
 import { apiClient } from '@/lib/api';
 
 interface DealDetailProps {
@@ -103,7 +104,7 @@ const DealDetail: React.FC<DealDetailProps> = ({
       const res = await apiClient.updateTrade(dealId, { stage: newStage });
       if (res.trade) {
         onNotify(`Trade advanced to ${newStage}`);
-        onUpdateTrade(dealId, { stage: res.trade.stage });
+        onUpdateTrade(dealId, { stage: res.trade.stage as Trade['stage'] });
         // Refresh timeline if on that tab
         if (activeTab === 'timeline') fetchTimeline();
       }
@@ -138,6 +139,7 @@ const DealDetail: React.FC<DealDetailProps> = ({
 
   if (canEdit || role === 'finance_partner') {
     tabs.push({ id: 'deployment', l: 'Deployment' });
+    tabs.push({ id: 'fdp', l: 'Finance Package' });
   }
 
   const handleUpdateDeployment = async (pct: number) => {
@@ -537,16 +539,14 @@ const DealDetail: React.FC<DealDetailProps> = ({
           </div>
         </div>
         {role === 'ops_admin' && (
-          <select 
-            className="input-field" 
-            style={{ width: 'auto', padding: '4px 8px', height: '32px', fontSize: '11px' }}
-            onChange={(e) => handleAdvanceStage(e.target.value)}
-            value={d.stage}
-          >
-            {Object.entries(stageConfig).map(([k, cfg]) => (
-              <option key={k} value={k}>{cfg.l}</option>
-            ))}
-          </select>
+          <div style={{ width: '160px' }}>
+            <CustomSelect 
+              compact
+              value={d.stage}
+              onChange={(e) => handleAdvanceStage(e.target.value)}
+              options={Object.entries(stageConfig).map(([k, cfg]) => ({ label: cfg.l, value: k }))}
+            />
+          </div>
         )}
       </div>
 
@@ -595,6 +595,12 @@ const DealDetail: React.FC<DealDetailProps> = ({
           tradeId={dealId} 
           onNotify={onNotify} 
           role={role} 
+        />
+      )}
+      {activeTab === 'fdp' && (
+        <FDPPreview 
+          tradeId={dealId} 
+          onNotify={onNotify}
         />
       )}
     </div>

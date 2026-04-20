@@ -11,7 +11,7 @@ interface UserManagementHubProps {
   onNotify: (msg: string, type?: string) => void;
 }
 
-type Tab = 'ALL' | 'STAFF' | 'TRADERS' | 'PARTNERS';
+type Tab = 'ALL' | 'STAFF' | 'TRADERS' | 'FINANCE PARTNERS';
 
 type HubMode = 'LIST' | 'PROVISION' | 'VERIFY';
 
@@ -33,14 +33,7 @@ const UserManagementHub: React.FC<UserManagementHubProps> = ({ onNotify }) => {
       setUsers(response.data || []);
     } catch (err: any) {
       console.error('Failed to fetch users:', err);
-      // Fallback for demo/dev
-      setUsers([
-        { id: '1', full_name: 'Muazu Abubakar', email: 'officer@miziba.com', role: 'deal_officer', org_name: 'Miziba Strategic', is_active: true, created_at: '2026-01-10' },
-        { id: '2', full_name: 'Sarah Mensah', email: 'cfo@miziba.com', role: 'cfo', org_name: 'Miziba Strategic', is_active: true, created_at: '2026-01-12' },
-        { id: '3', full_name: 'Isaac Kobby', email: 'trader@example.com', role: 'trader', org_name: 'Wenchi Cashew Alliance', kyc_status: 'VERIFIED', is_active: true, trade_count: 12, created_at: '2026-02-15' },
-        { id: '4', full_name: 'Abena Darko', email: 'abena@ghana-cashew.com', role: 'trader', org_name: 'Darko Exports Ltd', kyc_status: 'PENDING', is_active: true, trade_count: 0, created_at: '2026-04-10' },
-        { id: '5', full_name: 'Kwame Osei', email: 'k.osei@ecobank.com', role: 'finance_partner', org_name: 'Ecobank DFI', is_active: true, created_at: '2026-01-20' }
-      ]);
+      onNotify('Failed to synchronize user directory. Please check your session.', 'error');
     } finally {
       setLoading(false);
     }
@@ -49,22 +42,31 @@ const UserManagementHub: React.FC<UserManagementHubProps> = ({ onNotify }) => {
   const filteredUsers = users.filter(u => {
     if (activeTab === 'STAFF') return ['ceo', 'cfo', 'deal_officer', 'ops_admin'].includes(u.role);
     if (activeTab === 'TRADERS') return u.role === 'trader';
-    if (activeTab === 'PARTNERS') return u.role === 'finance_partner';
+    if (activeTab === 'FINANCE PARTNERS') return u.role === 'finance_partner';
     return true;
   });
 
   const getRoleBadge = (role: string) => {
     const roles: any = {
-      ceo: { label: 'CEO', bg: '#FEE2E2', color: '#B91C1C' },
-      cfo: { label: 'CFO', bg: '#FEF3C7', color: '#92400E' },
-      deal_officer: { label: 'Officer', bg: '#DBEAFE', color: '#1E40AF' },
-      trader: { label: 'Trader', bg: '#D1FAE5', color: '#065F46' },
-      finance_partner: { label: 'Partner', bg: '#EDE9FE', color: '#5B21B6' },
-      ops_admin: { label: 'Admin', bg: '#F3F4FB', color: '#1F2937' }
+      ceo: { label: 'CEO', bg: 'var(--cr-bg)', color: 'var(--cr)' },
+      cfo: { label: 'CFO', bg: 'var(--cr-bg)', color: 'var(--cr-l)' },
+      deal_officer: { label: 'Officer', bg: '#f1f5f9', color: 'var(--nv)' },
+      trader: { label: 'Trader', bg: '#fef3c7', color: '#92400e' }, // Keeping gold/amber for traders
+      finance_partner: { label: 'Finance Partner', bg: 'var(--pu-bg)', color: 'var(--pu)' },
+      ops_admin: { label: 'Admin', bg: '#f3f4fb', color: 'var(--nv-m)' }
     };
     const r = roles[role] || { label: role, bg: '#F3F4F6', color: '#374151' };
     return (
-      <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 800, background: r.bg, color: r.color, textTransform: 'uppercase' }}>
+      <span style={{ 
+        padding: '5px 10px', 
+        borderRadius: '6px', 
+        fontSize: '10px', 
+        fontWeight: 800, 
+        background: r.bg, 
+        color: r.color, 
+        textTransform: 'uppercase',
+        border: `1px solid ${role === 'trader' ? '#fde68a' : (role === 'finance_partner' ? 'var(--pu-b)' : (role === 'ceo' || role === 'cfo' ? 'var(--cr-b)' : 'transparent'))}`
+      }}>
         {r.label}
       </span>
     );
@@ -73,22 +75,22 @@ const UserManagementHub: React.FC<UserManagementHubProps> = ({ onNotify }) => {
   return (
     <div className="fade-in">
       {/* Header Area */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
-        <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
+        <div style={{ flex: 1, minWidth: '280px' }}>
           <h2 style={{ fontSize: '28px', fontWeight: 800, letterSpacing: '-0.03em', color: '#111827' }}>
-            {mode === 'LIST' ? 'User Management' : mode === 'PROVISION' ? 'Provision Account' : 'Verification Inbox'}
+            {mode === 'LIST' ? 'User Management' : mode === 'PROVISION' ? 'Add New User' : 'Verification Inbox'}
           </h2>
           <p style={{ color: '#6B7280', fontSize: '14px', marginTop: '4px' }}>
-            {mode === 'LIST' ? 'Manage staff access, verify traders, and provision new accounts.' : 
+            {mode === 'LIST' ? 'Manage staff access, verify traders, and add new users.' : 
              mode === 'PROVISION' ? 'Create new organizational roles and provision system access.' : 
              'Review and approve business credentials for new trader organizations.'}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
             {mode === 'LIST' ? (
                 <>
                     <Button variant="secondary" onClick={fetchUsers}>↻ Refresh</Button>
-                    <Button onClick={() => setMode('PROVISION')}>+ Provision Account</Button>
+                    <Button onClick={() => setMode('PROVISION')}>+ Add New User</Button>
                 </>
             ) : (
                 <Button variant="secondary" onClick={() => setMode('LIST')}>← Back to Hub</Button>
@@ -99,8 +101,8 @@ const UserManagementHub: React.FC<UserManagementHubProps> = ({ onNotify }) => {
       {mode === 'LIST' && (
         <>
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: '32px', borderBottom: '1px solid #E5E7EB', marginBottom: '24px' }}>
-                {(['ALL', 'STAFF', 'TRADERS', 'PARTNERS'] as Tab[]).map(t => (
+            <div style={{ display: 'flex', gap: '32px', borderBottom: '1px solid #E5E7EB', marginBottom: '24px', overflowX: 'auto', paddingBottom: '2px' }}>
+                {(['ALL', 'STAFF', 'TRADERS', 'FINANCE PARTNERS'] as Tab[]).map(t => (
                 <button
                     key={t}
                     onClick={() => setActiveTab(t)}
@@ -113,7 +115,8 @@ const UserManagementHub: React.FC<UserManagementHubProps> = ({ onNotify }) => {
                     cursor: 'pointer',
                     color: activeTab === t ? 'var(--cr)' : '#6B7280',
                     borderBottom: activeTab === t ? '2px solid var(--cr)' : '2px solid transparent',
-                    transition: 'all 0.2s'
+                    transition: 'all 0.2s',
+                    whiteSpace: 'nowrap'
                     }}
                 >
                     {t}
@@ -123,19 +126,20 @@ const UserManagementHub: React.FC<UserManagementHubProps> = ({ onNotify }) => {
 
             {/* Content Area */}
             <Card style={{ padding: 0, overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                    <tr style={{ textAlign: 'left', background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
-                    <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase' }}>User / Organization</th>
-                    <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase' }}>Role</th>
-                    <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase' }}>Status</th>
-                    {activeTab === 'TRADERS' && (
-                        <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase' }}>Trades</th>
-                    )}
-                    <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase' }}>Joined</th>
-                    <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
-                    </tr>
-                </thead>
+                <div className="tbl-wrap">
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                        <tr style={{ textAlign: 'left', background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
+                        <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase' }}>User / Organization</th>
+                        <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase' }}>User Type</th>
+                        <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase' }}>Status</th>
+                        {activeTab === 'TRADERS' && (
+                            <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase' }}>Trades</th>
+                        )}
+                        <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase' }}>Joined</th>
+                        <th style={{ padding: '12px 24px', fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
+                        </tr>
+                    </thead>
                 <tbody>
                     {loading ? (
                     <tr><td colSpan={6} style={{ padding: '60px', textAlign: 'center', color: '#9CA3AF' }}>Synchronizing directory...</td></tr>
@@ -205,6 +209,7 @@ const UserManagementHub: React.FC<UserManagementHubProps> = ({ onNotify }) => {
                     ))}
                 </tbody>
                 </table>
+              </div>
             </Card>
         </>
       )}

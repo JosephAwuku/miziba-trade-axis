@@ -15,7 +15,7 @@ export async function GET(
       return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
     }
 
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
 
     // Fetch documents associated with this trade
     const { data: documents, error } = await admin
@@ -57,7 +57,7 @@ export async function POST(
       return NextResponse.json({ error: 'INVALID_DATA' }, { status: 400 });
     }
 
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
 
     const { data: document, error } = await (admin
       .from('trade_documents') as any)

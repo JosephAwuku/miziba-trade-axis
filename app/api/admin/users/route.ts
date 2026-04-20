@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
     }
 
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
 
     // 2. Fetch Users with Organisation details
     // Joining with organisations and trader_profiles for active status/metrics
@@ -55,12 +55,12 @@ export async function GET(request: NextRequest) {
       .select('trader_org_id');
 
     const tradeCounts: Record<string, number> = {};
-    trades?.forEach(t => {
+    trades?.forEach((t: any) => {
       tradeCounts[t.trader_org_id] = (tradeCounts[t.trader_org_id] || 0) + 1;
     });
 
     // 4. Transform to Hub Format
-    const formattedData = users.map(u => {
+    const formattedData = users?.map((u: any) => {
       const org = (u.organisations as any);
       return {
         id: u.id,

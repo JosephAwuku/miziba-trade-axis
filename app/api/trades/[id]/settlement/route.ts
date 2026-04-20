@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, getAuthenticatedUser } from '@/lib/supabase';
 import { User, WaterfallInstruction } from '@/lib/types';
 import { calculateWaterfall } from '@/lib/business-logic';
-import { auditLog } from '@/lib/rbac';
+import { auditLog, hasPermission, checkOwnership } from '@/lib/rbac';
+import { notifyTradeParticipants, notifyInternalRoles } from '@/lib/notifications';
 
 // GET /api/trades/[id]/settlement — Get waterfall/settlement status
 export async function GET(
@@ -23,7 +24,7 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
     const { data: trade, error: tradeError } = await admin
       .from('trades')
       .select(`
@@ -100,7 +101,7 @@ export async function POST(
     const body = await request.json();
     const { action } = body;
 
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
 
     // Fetch trade for context
     const { data: trade } = await admin
@@ -139,11 +140,23 @@ export async function POST(
       await auditLog(admin, {
         userId: typedUser.id,
         tradeId: tradeId,
-        action: 'SETTLEMENT_INITIATED',
-        entityType: 'WATERFALL',
-        entityId: newWf.id,
+        action: 'INITIATE_WATERFALL',
+        entityType: 'waterfall',
+        entityId: tradeId,
         newValue: newWf
       });
+
+      // Notify CFOs about settlement initiation
+      try {
+        await notifyInternalRoles(admin, ['cfo', 'ceo'], {
+          subject: 'Settlement Initiated',
+          body: `Settlement for Trade ${tradeData.trade_ref} has been initiated. Awaiting first CFO signature.`,
+          type: 'SETTLEMENT_INITIATED',
+          tradeId: tradeId
+        });
+      } catch (notifErr) {
+        console.error('Notification failed:', notifErr);
+      }
 
       return NextResponse.json({ success: true, waterfall: newWf });
     }
@@ -190,11 +203,23 @@ export async function POST(
       await auditLog(admin, {
         userId: typedUser.id,
         tradeId: tradeId,
-        action: 'PAYMENT_RECORDED',
-        entityType: 'WATERFALL',
-        entityId: updatedWf.id,
+        action: 'RECORD_PAYMENT',
+        entityType: 'waterfall',
+        entityId: tradeId,
         newValue: updatedWf
       });
+
+      // Notify internal roles about payment
+      try {
+        await notifyInternalRoles(admin, ['cfo', 'ceo', 'deal_officer'], {
+          subject: 'Buyer Payment Recorded',
+          body: `A payment of ${payment_amount} USD has been recorded for Trade ${tradeData.trade_ref}.`,
+          type: 'PAYMENT_RECORDED',
+          tradeId: tradeId
+        });
+      } catch (notifErr) {
+        console.error('Notification failed:', notifErr);
+      }
 
       return NextResponse.json({ success: true, waterfall: updatedWf });
     }
@@ -243,10 +268,22 @@ export async function POST(
         await auditLog(admin, {
           userId: typedUser.id,
           tradeId: tradeId,
-          action: 'SETTLEMENT_FINALIZED',
-          entityType: 'TRADE',
+          action: 'SETTLE_TRADE',
+          entityType: 'trade',
           entityId: tradeId
         });
+
+        // Notify Trader and FP about final settlement
+        try {
+          await notifyTradeParticipants(admin, tradeData, {
+            subject: 'Trade Settled & Finalized',
+            body: `Settlement for Trade ${tradeData.trade_ref} is complete. Disbursement instructions have been issued.`,
+            type: 'TRADE_SETTLED',
+            excludeUserId: typedUser.id
+          });
+        } catch (notifErr) {
+          console.error('Final settlement notification failed:', notifErr);
+        }
       }
 
       return NextResponse.json({ success: true });

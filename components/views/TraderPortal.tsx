@@ -43,7 +43,7 @@ const TraderPortal: React.FC<TraderPortalProps> = ({ trades, onNotify, view, onV
             <StatusTracker trade={activeTrade} />
             <div className="card" style={{ padding: '16px' }}>
               <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px', color: 'var(--text)' }}>Deal Summary</div>
-              <div className="g3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+              <div className="g3" style={{ marginBottom: '12px' }}>
                 {[
                   ['Commodity', `${activeTrade.cmd} Gr.${activeTrade.gr}`],
                   ['Volume', `${activeTrade.vol} MT`],

@@ -24,7 +24,6 @@ export async function createNotification(
         trade_id: tradeId || null,
         subject,
         body,
-        type,
         created_at: new Date().toISOString()
       });
 
@@ -67,3 +66,30 @@ export async function notifyTradeParticipants(
 
   await Promise.all(notifications);
 }
+
+/**
+ * Notifies all users with specified internal roles
+ */
+export async function notifyInternalRoles(
+  admin: any,
+  roles: string[],
+  { subject, body, type, tradeId, excludeUserId }: { subject: string, body: string, type: string, tradeId?: string, excludeUserId?: string }
+) {
+  try {
+    const { data: internalUsers } = await admin
+      .from('users')
+      .select('id')
+      .in('role', roles);
+
+    if (!internalUsers) return;
+
+    const notifications = internalUsers
+      .filter((u: any) => u.id !== excludeUserId)
+      .map((u: any) => createNotification(admin, { userId: u.id, tradeId, subject, body, type }));
+
+    await Promise.all(notifications);
+  } catch (err) {
+    console.error('Failed to notify internal roles:', err);
+  }
+}
+

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, getAuthenticatedUser } from '@/lib/supabase';
 import { User, RiskAssessment } from '@/lib/types';
 import { getRiskRecommendation } from '@/lib/risk-config';
+import { notifyInternalRoles } from '@/lib/notifications';
 
 // GET /api/trades/[id]/risk — Get risk assessment
 export async function GET(
@@ -19,7 +20,7 @@ export async function GET(
       return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
     }
 
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
     // In a real system, this would be a separate table. 
     // For this build, we store the score in the trades table and 
     // might mock or store the breakdown in a metadata/jsonb column if available.
@@ -83,7 +84,7 @@ export async function POST(
       return NextResponse.json({ error: 'INVALID_PAYLOAD' }, { status: 400 });
     }
 
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
     
     // We update the main trades table with the new score and breakdown
     const { data: updated, error } = await (admin
@@ -112,6 +113,18 @@ export async function POST(
     }
 
     const rec = getRiskRecommendation(risk_score);
+
+    // Notify internal roles (CEO, Ops) about risk update
+    try {
+      await notifyInternalRoles(admin, ['ceo', 'ops_admin'], {
+        subject: 'Risk Assessment Updated',
+        body: `Trade ${updated?.trade_ref || tradeId} risk score updated: ${risk_score}/100 (${rec.label}).`,
+        type: 'RISK_UPDATE',
+        tradeId: tradeId
+      });
+    } catch (notifErr) {
+      console.error('Risk notification failed:', notifErr);
+    }
 
     return NextResponse.json({
       success: true,

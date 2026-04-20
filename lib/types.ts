@@ -8,13 +8,25 @@ export type View =
   | 'buyers'
   | 'fp_crm'
   | 'settle'
+  | 'cfo_overview'
+  | 'ceo_overview'
+  | 'ops_overview'
   | 'fps'
   | 'trs'
+  | 'trs_overview'
   | 'trs_status'
   | 'trs_apply'
   | 'trs_docs'
   | 'trs_settle'
+  | 'trs_verify'
+  | 'fp_overview'
+  | 'fp_dashboard'
+  | 'fp_inbox'
+  | 'fp_portfolio'
+  | 'fp_reports'
+  | 'fp_onboarding'
   | 'admin_onboard'
+  | 'admin_directory'
   | 'admin_verify';
 
 export interface Trade {
@@ -272,6 +284,7 @@ export interface Notification {
   user_id: string;
   trade_id?: string;
   channel: 'email' | 'in_app' | 'sms';
+  type?: string; 
   subject: string;
   body: string;
   sent_at?: string;

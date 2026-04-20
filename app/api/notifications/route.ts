@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { profile } = auth;
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
 
     const { data: notifications, error } = await admin
       .from('notifications')
@@ -49,7 +49,7 @@ export async function PATCH(request: NextRequest) {
 
     const { profile } = auth;
     const { id } = await request.json();
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
 
     const query = admin
       .from('notifications')

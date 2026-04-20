@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, getAuthenticatedUser } from '@/lib/supabase';
 import { ValidationChecklist, User } from '@/lib/types';
+import { notifyTradeParticipants, notifyInternalRoles } from '@/lib/notifications';
 
 // GET /api/trades/[id]/validation — Get validation checklist
 export async function GET(
@@ -19,7 +20,7 @@ export async function GET(
       return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
     }
 
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
     const { data: validation, error } = await (admin
       .from('trade_validations') as any)
       .select('*')
@@ -100,21 +101,38 @@ export async function PATCH(
     const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
     
     const auth = await getAuthenticatedUser(token);
+    if (!auth) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
 
-    if (!auth || !['deal_officer', 'ceo', 'ops_admin'].includes(auth.profile.role as string)) {
+    const typedUser = auth.profile as any;
+    if (!['deal_officer', 'ceo', 'ops_admin'].includes(typedUser.role)) {
       return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
     }
 
-    const { item_id, completed } = await request.json();
+    const { item_id, completed, decision, decline_reason } = await request.json();
 
     const update: any = {};
-    if (['buyer_verified', 'price_reasonable', 'sourcing_feasible', 'trader_qualified', 'margin_viable'].includes(item_id)) {
-      update[item_id] = completed;
-    } else {
-      return NextResponse.json({ error: 'INVALID_ITEM' }, { status: 400 });
+    if (item_id) {
+      if (['buyer_verified', 'price_reasonable', 'sourcing_feasible', 'trader_qualified', 'margin_viable'].includes(item_id)) {
+        update[item_id] = completed;
+      } else {
+        return NextResponse.json({ error: 'INVALID_ITEM' }, { status: 400 });
+      }
     }
 
-    const admin = await supabaseAdmin();
+    if (decision) {
+      if (['validated', 'declined', 'referred'].includes(decision)) {
+        update.decision = decision;
+        if (decline_reason) update.decline_reason = decline_reason;
+        if (decision === 'validated') {
+          update.completed_at = new Date().toISOString();
+          update.validated_by = typedUser.id;
+        }
+      } else {
+        return NextResponse.json({ error: 'INVALID_DECISION' }, { status: 400 });
+      }
+    }
+
+    const admin = supabaseAdmin;
     const { data: updated, error } = await (admin
       .from('trade_validations') as any)
       .update({
@@ -130,10 +148,41 @@ export async function PATCH(
       return NextResponse.json({ error: 'DATABASE_ERROR' }, { status: 500 });
     }
 
+    // Notify on decision
+    if (decision) {
+      // 1. Get trade info for notification
+      const { data: trade } = await admin.from('trades').select('*').eq('id', tradeId).single();
+      
+      if (trade) {
+        if (decision === 'validated') {
+          await notifyTradeParticipants(admin, trade, {
+            subject: 'Trade Validated',
+            body: `Trade ${trade.trade_ref} has been successfully validated and is moving to Finance Review.`,
+            type: 'TRADE_VALIDATED',
+            excludeUserId: typedUser.id
+          });
+          
+          await notifyInternalRoles(admin, ['ceo'], {
+            subject: 'Action Required: CEO Review',
+            body: `Trade ${trade.trade_ref} is validated. Risk Score: ${trade.risk_score || 'N/A'}.`,
+            type: 'CEO_REVIEW_REQUIRED',
+            tradeId: trade.id
+          });
+        } else if (decision === 'declined') {
+          await notifyTradeParticipants(admin, trade, {
+            subject: 'Trade Declined',
+            body: `Trade ${trade.trade_ref} was declined during validation. Reason: ${decline_reason || 'N/A'}`,
+            type: 'TRADE_DECLINED',
+            excludeUserId: typedUser.id
+          });
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       validation: updated,
-      message: 'Item updated successfully',
+      message: 'Validation updated successfully',
     });
   } catch (error) {
     console.error('PATCH /api/trades/[id]/validation error:', error);

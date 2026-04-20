@@ -36,7 +36,11 @@ export async function getUserProfile(userId: string) {
     .single();
 
   if (error) {
-    console.error('getUserProfile error:', error);
+    console.error(`getUserProfile error for ${userId}:`, error);
+    return null;
+  }
+  if (!data) {
+    console.error(`getUserProfile returned no data for ${userId}`);
     return null;
   }
   return data as any;
@@ -55,8 +59,11 @@ export async function getAuthenticatedUser(token?: string) {
         if (decoded?.user?.id) {
           userId = decoded.user.id;
           authUser = decoded.user;
+        } else {
+          console.error('JWT decoded but missing user.id', decoded);
         }
-      } catch (e) {
+      } catch (e: any) {
+        console.error('JWT verify failed:', e.message);
         // 2. Fallback to Supabase Auth token
         const { data: { user } } = await supabaseAdmin.auth.getUser(token);
         if (user) {

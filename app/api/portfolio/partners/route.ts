@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
     }
 
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
 
     // 1. Fetch all Finance Partner organizations
     const { data: orgs, error: orgsError } = await admin

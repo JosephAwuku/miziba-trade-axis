@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, getAuthenticatedUser } from '@/lib/supabase';
 import { hasPermission, checkOwnership } from '@/lib/rbac';
 import { calculateWaterfall } from '@/lib/business-logic';
+import { generateFDPBuffer, FDPSummary } from '@/lib/pdf-service';
+import { uploadFDP } from '@/lib/supabase/storage';
 
 export async function GET(
   request: NextRequest,
@@ -21,7 +23,7 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
     const { data: trade, error: tradeError } = await admin
       .from('trades')
       .select(`
@@ -91,10 +93,16 @@ export async function POST(
     const body = await request.json();
     const { action } = body; // e.g., 'generate', 'send_to_fp'
 
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
     const { data: trade, error: tradeError } = await admin
       .from('trades')
-      .select('*')
+      .select(`
+        *,
+        organisations!trades_trader_org_id_fkey (name),
+        buyers (name),
+        trade_risk_scores (total_score),
+        world_check_status:kyc_status
+      `)
       .eq('id', tradeId)
       .single();
 
@@ -111,16 +119,53 @@ export async function POST(
         .update({ is_current: false })
         .eq('trade_id', tradeId);
 
+      const waterfallResult = calculateWaterfall({
+        buyerPaymentUsd: tradeData.contract_value_usd,
+        financeFacilityUsd: tradeData.finance_facility_usd,
+        fpFeeRatePa: 0.12, // Standard PA
+        tenorDays: 90,
+        contractValueUsd: tradeData.contract_value_usd
+      });
+
+      // Prepare PDf data
+      const fdpSummary: FDPSummary = {
+        tradeRef: tradeData.trade_ref,
+        commodity: tradeData.commodity,
+        volume: `${tradeData.volume_mt} MT`,
+        valuation: `$${tradeData.contract_value_usd.toLocaleString()}`,
+        trader: tradeData.organisations?.name || 'Unknown',
+        buyer: tradeData.buyers?.name || 'Unknown',
+        riskScore: tradeData.trade_risk_scores?.[0]?.total_score || tradeData.risk_score || 50,
+        riskBand: tradeData.risk_score ? (tradeData.risk_score > 75 ? 'LOW_RISK' : 'MODERATE_RISK') : 'UNDER_REVIEW',
+        waterfall: {
+          principal: `$${waterfallResult.fpPrincipalUsd.toLocaleString()}`,
+          fees: `$${waterfallResult.fpFeeUsd.toLocaleString()}`,
+          mizibaFee: `$${waterfallResult.mizabaFeeUsd.toLocaleString()}`,
+          traderMargin: `$${waterfallResult.traderMarginUsd.toLocaleString()}`
+        }
+      };
+
+      // Generate PDF
+      const pdfBuffer = await generateFDPBuffer(fdpSummary);
+      
+      // Upload to Storage
+      const { key: pdfKey, error: uploadError } = await uploadFDP(tradeId, pdfBuffer);
+      if (uploadError) {
+        console.error('FDP PDF upload failed:', uploadError);
+      }
+
       const { data: fdp, error: fdpError } = await (admin
         .from('finance_data_packages') as any)
-        .insert({
-          trade_id: tradeId,
-          generated_by: typedUser.id,
-          generated_at: new Date().toISOString(),
-          is_current: true
-        })
-        .select()
-        .single();
+      .insert({
+        trade_id: tradeId,
+        generated_by: typedUser.id,
+        generated_at: new Date().toISOString(),
+        is_current: true,
+        pdf_ready: !!pdfKey,
+        pdf_s3_key: pdfKey || null
+      })
+      .select()
+      .single();
 
       if (fdpError) throw fdpError;
 

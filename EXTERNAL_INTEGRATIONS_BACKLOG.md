@@ -36,6 +36,41 @@ This document preserves the technical specifications and integration nodes for *
 
 ---
 
+## 3. Automated User Onboarding (Email)
+
+### Integration Scope
+Currently, user creation is manual and temporary passwords (`Welcome123!`) must be shared out-of-band. The goal is to automate this using **Resend** or a similar SMTP/Transactional email provider.
+
+### Feature Workflow
+1.  **Trigger**: On `POST /api/admin/invite` success.
+2.  **Action**:
+    -   Generate a secure, single-use invitation token or random temporary password.
+    -   Dispatch a branded HTML email to the invitee.
+    -   Include a direct "Magic Link" or "Set Password" URL.
+3.  **Authentication**: Transition from custom JWT login to **Supabase Auth** or a secure email-based verification flow.
+
+### Required Templates
+| Email Type | Purpose | Key Data |
+| :--- | :--- | :--- |
+| `Invite (Trader)` | Verification & Onboarding | Org Name, Temporary Credentials |
+| `Invite (Partner)` | Facility Management Access | Finance Portfolio Link |
+| `Password Reset` | Security recovery | Reset Token Link |
+
+---
+
+## 4. Finance Partner Onboarding Enforcement
+
+### Current Status
+Onboarding is currently a "soft" checklist in Standalone Mode. Users can see and approve deals even if they haven't completed the framework agreement or bank setup.
+
+### Required Hardening
+1.  **Block Decisions**: In `FinancePartnerPortal`, disable or hide the "Pending Requests" view and "Approve" buttons if `onboarding_done` is `FALSE` (or `onboarding_step < 6`).
+2.  **Synchronize State**: Sync the `onboardingStep` state from the frontend to the `finance_partner_profiles` table in Supabase.
+3.  **DocuSign Integration**: Wire Step 2 (Master Framework Agreement) to a real DocuSign flow (see backlog item #3).
+4.  **Backend Guard**: Update `validateStageTransition()` in the backend business logic to require an "Onboarded Partner" flag before allowing `FINANCE_REVIEW` -> `FUNDED` transition.
+
+---
+
 ## Technical Debt / Next Steps for "Integrated Mode"
 
 1.  **Remove Override Guards**: When switching to Integrated Mode, the "Manual Override" buttons in the UI should be hidden or locked behind an "Emergency Admin" role only.

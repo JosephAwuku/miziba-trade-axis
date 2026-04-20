@@ -15,7 +15,7 @@ export async function GET(
       return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
     }
 
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
 
     // Fetch audit logs for this specific trade
     const { data: logs, error } = await (admin

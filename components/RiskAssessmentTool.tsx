@@ -41,7 +41,7 @@ const RiskAssessmentTool: React.FC<RiskAssessmentToolProps> = ({ initialData, on
   return (
     <div className="fade-in">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '12px', flexWrap: 'wrap' }}>
-        <div>
+        <div style={{ flex: 1, minWidth: '200px' }}>
           <h2 style={{ fontSize: '18px', fontWeight: 800 }}>Risk Scoring Calculator</h2>
           <p style={{ fontSize: '14px', color: '#6B7280', marginTop: '4px' }}>5 dimensions · 100 points · Click tier to select</p>
         </div>
@@ -79,7 +79,7 @@ const RiskAssessmentTool: React.FC<RiskAssessmentToolProps> = ({ initialData, on
         </div>
       </Card>
 
-      <div className="g2" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px', marginBottom: '16px' }}>
+      <div className="g2" style={{ marginBottom: '16px' }}>
         {RISK_DIMENSIONS.map((dim) => {
           const s = scores[dim.key];
           const pct = Math.round((s / dim.max) * 100);
@@ -97,40 +97,40 @@ const RiskAssessmentTool: React.FC<RiskAssessmentToolProps> = ({ initialData, on
               <ProgressBar value={pct} color={dc} height="6px" />
               <div style={{ marginTop: '12px' }}>
                 {dim.tiers.map((tier) => (
-                  <div 
-                    key={tier.label}
-                    className={`risk-tier ${s === tier.score ? 'sel' : ''}`} 
-                    onClick={() => handleSetScore(dim.key, tier.score)}
-                    style={{
-                      display: 'flex',
-                      gap: '9px',
-                      padding: '8px',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      marginBottom: '4px',
-                      border: '1px solid transparent',
-                      background: s === tier.score ? '#EFF6FF' : 'transparent',
-                      borderColor: s === tier.score ? '#BFDBFE' : 'transparent',
-                      transition: 'all 0.1s'
-                    }}
-                  >
-                    <span 
-                      className="mono" 
-                      style={{ 
-                        fontSize: '14px', 
-                        fontWeight: 700, 
-                        color: s === tier.score ? '#2563EB' : '#9CA3AF', 
-                        width: '24px', 
-                        textAlign: 'right', 
-                        flexShrink: 0 
+                    <div 
+                      key={tier.label}
+                      className={`risk-tier ${s === tier.score ? 'sel' : ''}`} 
+                      onClick={() => handleSetScore(dim.key, tier.score)}
+                      style={{
+                        display: 'flex',
+                        gap: '9px',
+                        padding: '8px',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        marginBottom: '4px',
+                        border: '1px solid transparent',
+                        backgroundColor: s === tier.score ? 'var(--cr-bg)' : 'transparent',
+                        borderColor: s === tier.score ? 'var(--cr-b)' : 'transparent',
+                        transition: 'all 0.1s'
                       }}
                     >
-                      {tier.score}
-                    </span>
-                    <span style={{ fontSize: '14px', color: s === tier.score ? '#111827' : '#6B7280', fontWeight: 500, lineHeight: '1.5' }}>
-                      {tier.label}
-                    </span>
-                  </div>
+                      <span 
+                        className="mono" 
+                        style={{ 
+                          fontSize: '14px', 
+                          fontWeight: 700, 
+                          color: s === tier.score ? 'var(--cr)' : '#9CA3AF', 
+                          width: '24px', 
+                          textAlign: 'right', 
+                          flexShrink: 0 
+                        }}
+                      >
+                        {tier.score}
+                      </span>
+                      <span style={{ fontSize: '14px', color: s === tier.score ? 'var(--text)' : '#6B7280', fontWeight: 500, lineHeight: '1.5' }}>
+                        {tier.label}
+                      </span>
+                    </div>
                 ))}
               </div>
             </Card>

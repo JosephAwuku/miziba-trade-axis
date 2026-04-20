@@ -21,12 +21,7 @@ const UserDirectory: React.FC<{ onNotify: (m: string, t?: string) => void }> = (
       setUsers(response.data || []);
     } catch (err: any) {
       console.error('Failed to fetch users:', err);
-      // Fallback for demo if endpoint not fully mapped
-      setUsers([
-        { id: '1', full_name: 'Muazu Abubakar', email: 'officer@miziba.com', role: 'deal_officer', org_name: 'Miziba Strategic', is_active: true },
-        { id: '2', full_name: 'Sarah Mensah', email: 'cfo@miziba.com', role: 'cfo', org_name: 'Miziba Strategic', is_active: true },
-        { id: '3', full_name: 'Isaac Kobby', email: 'trader@example.com', role: 'trader', org_name: 'Wenchi Cashew Alliance', is_active: true }
-      ]);
+      onNotify('Failed to synchronize user directory. Please check your session.', 'error');
     } finally {
       setLoading(false);
     }

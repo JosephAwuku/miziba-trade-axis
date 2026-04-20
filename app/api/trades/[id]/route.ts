@@ -25,7 +25,7 @@ export async function GET(
 
     const typedUser: User = auth.profile as User;
 
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
     const { data: trade, error } = await admin
       .from('trades')
       .select(`
@@ -87,7 +87,7 @@ export async function PATCH(
 
     const typedUser: User = auth.profile as User;
 
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
 
     // Get current trade to check permissions and stage transition
     const { data: currentTrade } = await admin
@@ -186,8 +186,8 @@ export async function PATCH(
         await notifyTradeParticipants(admin, updatedTrade, {
           subject: body.stage ? `Trade Stage Updated: ${body.stage}` : 'Risk Score Updated',
           body: body.stage 
-            ? `Trade ${updatedTrade.tr} has moved from ${tradeData.stage} to ${body.stage}.`
-            : `The risk assessment for Trade ${updatedTrade.tr} has been recalculated to ${body.risk_score}/100.`,
+            ? `Trade ${updatedTrade.trade_ref} has moved from ${tradeData.stage} to ${body.stage}.`
+            : `The risk assessment for Trade ${updatedTrade.trade_ref} has been recalculated to ${body.risk_score}/100.`,
           type: body.stage ? 'STAGE_UPDATE' : 'RISK_UPDATE',
           excludeUserId: typedUser.id
         });

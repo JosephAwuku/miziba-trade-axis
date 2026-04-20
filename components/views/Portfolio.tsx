@@ -5,6 +5,8 @@ import { Card, ProgressBar, Badge } from '../ui';
 import { usd, mt } from '@/lib/utils';
 import { apiClient } from '@/lib/api';
 import { ST as stageConfig, CMD as commodityConfig } from '@/lib/data';
+import CommodityDonut from '../analytics/CommodityDonut';
+import StageBarChart from '../analytics/StageBarChart';
 
 const Portfolio: React.FC = () => {
   const [metrics, setMetrics] = useState<any>(null);
@@ -65,7 +67,21 @@ const Portfolio: React.FC = () => {
       </div>
 
       <div className="g2" style={{ alignItems: 'start', gap: '20px' }}>
-        <Card title="PIPELINE DISTRIBUTION">
+        <Card title="PIPELINE DISTRIBUTION (DEAL COUNT)">
+          <div style={{ padding: '0 10px' }}>
+            <StageBarChart data={metrics.stage_distribution} />
+          </div>
+        </Card>
+
+        <Card title="COMMODITY EXPOSURE (CONTRACT VALUE)">
+          <div style={{ padding: '0 10px' }}>
+            <CommodityDonut data={metrics.commodity_breakdown} />
+          </div>
+        </Card>
+      </div>
+
+      <div className="g2" style={{ marginTop: '20px', alignItems: 'start', gap: '20px' }}>
+        <Card title="DETAILED PIPELINE BREAKDOWN">
           <div style={{ padding: '20px' }}>
             {stageKeys.map(k => (
               <div key={k} style={{ marginBottom: '14px' }}>
@@ -83,7 +99,7 @@ const Portfolio: React.FC = () => {
           </div>
         </Card>
 
-        <Card title="COMMODITY EXPOSURE">
+        <Card title="DETAILED COMMODITY DATA">
           <div style={{ padding: '20px' }}>
             {Object.keys(metrics.commodity_breakdown).map(k => (
               <div key={k} style={{ marginBottom: '14px' }}>

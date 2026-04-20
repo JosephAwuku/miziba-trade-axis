@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
     const typedUser: User = auth.profile as User;
 
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
 
     // Base query for trades
     let query = admin.from('trades').select('*');
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     const commodity_breakdown: Record<string, number> = {};
     const countries = new Set<string>();
 
-    trades?.forEach(t => {
+    trades?.forEach((t: any) => {
       const trade = t as any;
       total_contract_value_usd += trade.contract_value_usd || 0;
       total_facility_usd += trade.finance_facility_usd || 0;

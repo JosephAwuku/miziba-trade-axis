@@ -3,6 +3,15 @@
 import React, { useState } from 'react';
 import { Button, Card } from '../ui';
 import { apiClient } from '@/lib/api';
+import { useNavigationGuard } from '@/hooks/useNavigationGuard';
+
+const INITIAL_FORM_DATA = {
+  name: '',
+  email: '',
+  org_name: '',
+  role: 'trader',
+  temp_password: ''
+};
 
 interface UserInviteProps {
   onNotify: (msg: string, type?: string) => void;
@@ -12,13 +21,13 @@ interface UserInviteProps {
 const UserInvite: React.FC<UserInviteProps> = ({ onNotify, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    org_name: '',
-    role: 'trader',
-    temp_password: ''
-  });
+  const [formData, setFormData] = useState(INITIAL_FORM_DATA);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
+  // Check if form is dirty by comparing with INITIAL_FORM_DATA
+  const isDirty = !isSubmitted && JSON.stringify(formData) !== JSON.stringify(INITIAL_FORM_DATA);
+
+  useNavigationGuard(isDirty);
 
   const roles = [
     { id: 'trader', label: 'Trader / Exporter', desc: 'Can submit applications and business verification' },
@@ -32,7 +41,7 @@ const UserInvite: React.FC<UserInviteProps> = ({ onNotify, onSuccess }) => {
     setErrors({});
 
     const newErrors: Record<string, string> = {};
-    if (!formData.name.trim()) newErrors.name = 'Full name is required for account provisioning.';
+    if (!formData.name.trim()) newErrors.name = 'Full name is required for account creation.';
     if (!formData.email.trim()) {
       newErrors.email = 'A valid login email is required.';
     } else if (!formData.email.includes('@')) {
@@ -49,8 +58,9 @@ const UserInvite: React.FC<UserInviteProps> = ({ onNotify, onSuccess }) => {
     setLoading(true);
     try {
       await apiClient.inviteTrader(formData); // This calls the universal invite route
+      setIsSubmitted(true);
       onNotify(`Account created for ${formData.email} as ${formData.role.replace('_', ' ')}!`, 'success');
-      setFormData({ name: '', email: '', org_name: '', role: 'trader', temp_password: '' });
+      setFormData(INITIAL_FORM_DATA);
       if (onSuccess) onSuccess();
     } catch (err: any) {
       onNotify(err.message || 'Failed to create user.', 'error');
@@ -155,7 +165,7 @@ const UserInvite: React.FC<UserInviteProps> = ({ onNotify, onSuccess }) => {
 
           <div style={{ display: 'flex', gap: '12px', borderTop: '1px solid #F3F4F6', paddingTop: '32px' }}>
             <Button type="submit" disabled={loading} style={{ flex: 1, height: '54px', fontSize: '16px' }}>
-              {loading ? 'Creating Account...' : 'Provision User Account'}
+              {loading ? 'Creating Account...' : 'Create User Account'}
             </Button>
             <Button 
                 type="button" 

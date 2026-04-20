@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'MISSING_FIELDS' }, { status: 400 });
     }
 
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
 
     const { error } = await admin
       .from('organisations')

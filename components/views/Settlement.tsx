@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Card, ProgressBar, Badge, Button } from '../ui';
+import { Card, ProgressBar, Badge, Button, CustomDatePicker } from '../ui';
 import { usd } from '@/lib/utils';
 import { apiClient } from '@/lib/api';
 
@@ -123,12 +123,9 @@ const Settlement: React.FC<SettlementProps> = ({ tradeId, onNotify, role }) => {
               </div>
               <div style={{ marginBottom: '14px' }}>
                 <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '6px', color: '#374151' }}>DATE RECEIVED</label>
-                <input 
-                  type="date" 
-                  className="ui-input" 
+                <CustomDatePicker 
                   value={paymentDate} 
                   onChange={(e) => setPaymentDate(e.target.value)}
-                  style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #D1D5DB' }}
                 />
               </div>
               <Button 

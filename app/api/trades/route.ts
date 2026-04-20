@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, getUserFromSession, getAuthenticatedUser } from '@/lib/supabase';
 import { hasPermission } from '@/lib/rbac';
 import { TradeSummary, TradeApplicationInput, User } from '@/lib/types';
+import { notifyInternalRoles } from '@/lib/notifications';
 
 // GET /api/trades — List trades (filtered by role)
 export async function GET(request: NextRequest) {
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
     const per_page = Math.min(100, parseInt(searchParams.get('per_page') || '25'));
     const offset = (page - 1) * per_page;
 
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
     let query = admin
       .from('trades')
       .select(`
@@ -181,7 +182,7 @@ export async function POST(request: NextRequest) {
     // Calculate derived values
     const contractValue = body.volume_mt * body.price_per_mt_usd;
 
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
 
     // Insert trade
     const { data: trade, error } = await (admin
@@ -219,6 +220,18 @@ export async function POST(request: NextRequest) {
     await (supabaseAdmin as any)
       .from('trade_validations')
       .insert({ trade_id: tradeData.id });
+
+    // Notify internal roles (CEO, Ops, Officers) about new submission
+    try {
+      await notifyInternalRoles(admin, ['ceo', 'ops_admin', 'deal_officer'], {
+        subject: 'New Trade Submitted',
+        body: `A new ${tradeData.commodity} trade (${tradeData.trade_ref}) has been submitted for validation.`,
+        type: 'TRADE_SUBMITTED',
+        tradeId: tradeData.id
+      });
+    } catch (notifErr) {
+      console.error('Submission notification failed:', notifErr);
+    }
 
     return NextResponse.json(tradeData, { status: 201 });
   } catch (error) {

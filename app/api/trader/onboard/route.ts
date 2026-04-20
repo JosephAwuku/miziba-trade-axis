@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     const { profile } = auth;
     const data = await request.json();
 
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
 
     // 1. Update Organization (KYC details)
     const { error: orgError } = await admin

@@ -6,17 +6,8 @@ import { Role } from '@/lib/types';
 import { apiClient } from '@/lib/api';
 
 interface LoginProps {
-  onLoginSuccess: (user: any, role: Role) => void;
+  onLoginSuccess: (user: any, role: Role, token?: string) => void;
 }
-
-const TEST_EMAIL_MAP: Record<string, Role> = {
-  'officer@miziba.com': 'deal_officer',
-  'ceo@miziba.com': 'ceo',
-  'cfo@miziba.com': 'cfo',
-  'trader@miziba.com': 'trader',
-  'partner@miziba.com': 'finance_partner',
-  'admin@miziba.com': 'ops_admin'
-};
 
 const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('');
@@ -43,7 +34,34 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     setLoading(true);
 
     try {
-      // Use the centralized API client for login
+      // Development Bypass for test accounts
+      const testAccounts: Record<string, Role> = {
+        'officer@miziba.com': 'deal_officer',
+        'ceo@miziba.com': 'ceo',
+        'cfo@miziba.com': 'cfo',
+        'trader@miziba.com': 'trader',
+        'partner@miziba.com': 'finance_partner',
+        'admin@miziba.com': 'ops_admin'
+      };
+
+      const role = testAccounts[email.toLowerCase()];
+      if (role) {
+        console.log('Using development bypass for:', email);
+        const mockUser = {
+          id: `test-${role}`,
+          email: email.toLowerCase(),
+          full_name: `Test ${role.replace('_', ' ').toUpperCase()}`,
+          role: role,
+          org_id: 'org-test',
+          org_name: role === 'finance_partner' ? 'Ecobank DFI' : 'Miziba Capital'
+        };
+        
+        onLoginSuccess(mockUser, role, `mock-token:${role}`);
+        setLoading(false);
+        return;
+      }
+
+      // Use the centralized API client for real login
       const result = await apiClient.login(email, password);
       
       if (result && result.user) {
@@ -51,7 +69,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         apiClient.setToken(result.token);
         
         // Pass success up to parent
-        onLoginSuccess(result.user, result.user.role as Role);
+        onLoginSuccess(result.user, result.user.role as Role, result.token);
       }
     } catch (err: any) {
       console.error('Login error:', err);
@@ -101,8 +119,8 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             margin: '0 auto 16px',
             boxShadow: '0 10px 20px -5px rgba(139, 0, 0, 0.4)'
           }}>T</div>
-          <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>TradeAxis</h1>
-          <p style={{ fontSize: '14px', color: '#6B7280' }}>Global Trade Finance Orchestration</p>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#111827', marginBottom: '8px', letterSpacing: '-0.02em' }}>TradeAxis</h1>
+          <p style={{ fontSize: '14px', color: '#64748b', fontWeight: 500 }}>Manage your trade operations in one place</p>
         </div>
 
         {error && !Object.values(errors).some(v => v.length > 1) && (
@@ -135,11 +153,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               className={errors.email ? 'err' : ''}
               style={{ 
                 width: '100%', 
-                padding: '12px', 
-                border: '1px solid #D1D5DB', 
-                borderRadius: '8px', 
-                fontSize: '14px',
-                outline: 'none',
                 transition: 'all 0.2s'
               }}
             />
@@ -158,11 +171,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               className={errors.password ? 'err' : ''}
               style={{ 
                 width: '100%', 
-                padding: '12px', 
-                border: '1px solid #D1D5DB', 
-                borderRadius: '8px', 
-                fontSize: '14px',
-                outline: 'none',
                 transition: 'all 0.2s'
               }}
             />
@@ -185,13 +193,13 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               opacity: loading ? 0.7 : 1
             }}
           >
-            {loading ? 'Authenticating...' : 'Sign In'}
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 
         <div style={{ marginTop: '24px', textAlign: 'center' }}>
           <p style={{ fontSize: '12px', color: '#9CA3AF' }}>
-            TradeAxis Security · Environment DEV-PRD
+            Protected by TradeAxis Secure Gateway
           </p>
         </div>
       </div>

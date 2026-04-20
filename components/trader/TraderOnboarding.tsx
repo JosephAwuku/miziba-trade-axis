@@ -2,6 +2,20 @@
 
 import React, { useState } from 'react';
 import { Button, Card, ProgressBar } from '../ui';
+import { apiClient } from '@/lib/api';
+import { useNavigationGuard } from '@/hooks/useNavigationGuard';
+
+const INITIAL_FORM_DATA = {
+  companyName: 'Wenchi Cashew Alliance',
+  registrarNumber: 'GRL-8829-X',
+  tinNumber: 'T001229384',
+  address: 'Plot 42, Wenchi Main Rd, Bono Region',
+  bankName: '',
+  accountNumber: '',
+  accountBranch: '',
+  swiftCode: '',
+  agreed: false,
+};
 
 interface TraderOnboardingProps {
   onNotify: (msg: string, type?: string) => void;
@@ -13,17 +27,23 @@ const TraderOnboarding: React.FC<TraderOnboardingProps> = ({ onNotify }) => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   
   const [formData, setFormData] = useState({
-    companyName: 'Wenchi Cashew Alliance',
-    registrarNumber: 'GRL-8829-X',
-    tinNumber: 'T001229384',
-    address: 'Plot 42, Wenchi Main Rd, Bono Region',
-    bankName: '',
-    accountNumber: '',
-    accountBranch: '',
-    swiftCode: '',
-    agreed: false,
+    ...INITIAL_FORM_DATA,
     isSubmitted: false
   });
+
+  const isDirty = !formData.isSubmitted && JSON.stringify({
+    companyName: formData.companyName,
+    registrarNumber: formData.registrarNumber,
+    tinNumber: formData.tinNumber,
+    address: formData.address,
+    bankName: formData.bankName,
+    accountNumber: formData.accountNumber,
+    accountBranch: formData.accountBranch,
+    swiftCode: formData.swiftCode,
+    agreed: formData.agreed,
+  }) !== JSON.stringify(INITIAL_FORM_DATA);
+
+  useNavigationGuard(isDirty);
 
   const steps = [
     { n: 1, l: 'Company Profile' },

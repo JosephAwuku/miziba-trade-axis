@@ -13,6 +13,10 @@ class ApiClient {
     this.token = token;
   }
 
+  isAuthenticated(): boolean {
+    return !!this.token;
+  }
+
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -21,6 +25,48 @@ class ApiClient {
 
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    if (this.token && this.token.startsWith('mock-token')) {
+      const role = this.token.includes(':') ? this.token.split(':')[1] : 'ceo';
+      console.log(`[Dev] Mocking API request: ${endpoint} for role: ${role}`);
+      if (endpoint === '/auth/me') {
+        return {
+          id: `test-${role}`,
+          email: `${role}@miziba.com`,
+          full_name: `Test ${role.toUpperCase()}`,
+          role: role,
+          org_id: 'org-test',
+          org_name: 'Miziba Capital'
+        } as any;
+      }
+      if (endpoint.startsWith('/trades')) {
+        return {
+          data: [],
+          total: 0,
+          page: 1,
+          per_page: 10
+        } as any;
+      }
+      if (endpoint === '/portfolio') {
+        return {
+          total_contract_value_usd: 0,
+          total_facility_usd: 0,
+          avg_risk_score: 0,
+          total_volume_mt: 0,
+          countries_active: 0,
+          farmers_reached: 0,
+          stage_distribution: {},
+          commodity_breakdown: {},
+          total_deals: 0,
+          avg_trade_cycle_days: 0,
+          farmer_sla_compliance_pct: 0,
+          weight_reconciliation_pct: 0
+        } as any;
+      }
+      if (endpoint.startsWith('/portfolio/buyers')) return [] as any;
+      if (endpoint.startsWith('/admin')) return { data: [] } as any;
+      if (endpoint === '/notifications') return [] as any;
     }
 
     const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -42,6 +88,13 @@ class ApiClient {
 
   async getBuyers(): Promise<any[]> {
     return this.request<any[]>('/portfolio/buyers');
+  }
+
+  async addBuyer(data: any) {
+    return this.request<{ success: boolean; buyer: any }>('/portfolio/buyers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
   // Auth

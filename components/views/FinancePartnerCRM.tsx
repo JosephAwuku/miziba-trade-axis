@@ -33,18 +33,18 @@ const FinancePartnerCRM: React.FC = () => {
 
   return (
     <div className="fade-in">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <div>
-          <h2 style={{ fontSize: '18px', fontWeight: 700 }}>Finance Partner CRM</h2>
-          <p style={{ fontSize: '12px', color: '#6B7280' }}>Manage capital provider relationships and liquidity deployment.</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
+        <div style={{ flex: 1, minWidth: '280px' }}>
+          <h2 style={{ fontSize: '28px', fontWeight: 800, letterSpacing: '-0.03em', color: '#111827' }}>Finance Partner CRM</h2>
+          <p style={{ color: '#6B7280', fontSize: '14px', marginTop: '4px' }}>Manage capital provider relationships and liquidity deployment.</p>
         </div>
-        <Button variant="primary" size="sm">+ Invite Partner</Button>
+        <Button variant="primary" onClick={() => {}}>+ Invite Partner</Button>
       </div>
 
       <div className="g2" style={{ marginBottom: '20px' }}>
         <Card className="metric">
           <div className="metric-label">TOTAL LIQUIDITY ACCESSED</div>
-          <div className="metric-val" style={{ color: '#C9943A' }}>
+          <div className="metric-val">
             {usd(partners.reduce((a, b) => a + (b.total_deployed || 0), 0))}
           </div>
         </Card>

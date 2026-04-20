@@ -3,7 +3,23 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api';
 import { TradeApplicationInput, BuyerProfile } from '@/lib/types';
-import { Button } from '@/components/ui';
+import { Button, CustomSelect, CustomDatePicker, ConfirmDialog } from '@/components/ui';
+import { CMD } from '@/lib/data';
+import { useNavigationGuard } from '@/hooks/useNavigationGuard';
+
+const INITIAL_FORM_DATA: Partial<TradeApplicationInput> = {
+  commodity: 'cashew',
+  grade: 'A',
+  volume_mt: 0,
+  buyer_id: '',
+  price_per_mt_usd: 0,
+  procurement_cost_usd: 0,
+  trader_equity_usd: 0,
+  finance_facility_usd: 0,
+  delivery_point: '',
+  deadline_date: '',
+  payment_terms_days: 30,
+};
 
 interface ApplicationFormProps {
   onSuccess: (trade: any) => void;
@@ -14,20 +30,15 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ onSuccess, onNotify }
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [buyers, setBuyers] = useState<BuyerProfile[]>([]);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   
-  const [formData, setFormData] = useState<Partial<TradeApplicationInput>>({
-    commodity: 'cashew',
-    grade: 'A',
-    volume_mt: 0,
-    buyer_id: '',
-    price_per_mt_usd: 0,
-    procurement_cost_usd: 0,
-    trader_equity_usd: 0,
-    finance_facility_usd: 0,
-    delivery_point: '',
-    deadline_date: '',
-    payment_terms_days: 30,
-  });
+  const [formData, setFormData] = useState<Partial<TradeApplicationInput>>(INITIAL_FORM_DATA);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
+  // Check if form is dirty by comparing with INITIAL_FORM_DATA
+  const isDirty = !isSubmitted && JSON.stringify(formData) !== JSON.stringify(INITIAL_FORM_DATA);
+
+  useNavigationGuard(isDirty);
 
   useEffect(() => {
     fetchBuyers();
@@ -49,6 +60,12 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ onSuccess, onNotify }
     setFormData(prev => {
       const next = { ...prev, [name]: val };
       
+      // Clear error for this field
+      if (errors[name]) setErrors(e => {
+        const { [name]: removed, ...rest } = e;
+        return rest;
+      });
+      
       // Auto-calculate derived values
       if (name === 'volume_mt' || name === 'price_per_mt_usd') {
         const vol = name === 'volume_mt' ? (val as number) : (prev.volume_mt || 0);
@@ -64,24 +81,36 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ onSuccess, onNotify }
   };
 
   const validateStep = () => {
+    const e: Record<string, string> = {};
     if (step === 1) {
-      if (!formData.buyer_id || !formData.volume_mt || !formData.price_per_mt_usd || !formData.delivery_point || !formData.deadline_date) {
-        onNotify('Please fill in all required fields.', 'error');
-        return false;
-      }
+      if (!formData.commodity) e.commodity = 'Commodity selection is required.';
+      if (!formData.grade) e.grade = 'Grade is required.';
+      if (!formData.buyer_id) e.buyer_id = 'Please select a buyer.';
+      if (!formData.volume_mt || formData.volume_mt <= 0) e.volume_mt = 'Enter a valid volume in MT.';
+      if (!formData.price_per_mt_usd || formData.price_per_mt_usd <= 0) e.price_per_mt_usd = 'Enter a valid price per MT.';
+      if (!formData.delivery_point) e.delivery_point = 'Delivery point is required.';
+      if (!formData.deadline_date) e.deadline_date = 'Please set a procurement deadline.';
     }
     if (step === 2) {
+      if (!formData.procurement_cost_usd) e.procurement_cost_usd = 'Procurement cost is required.';
+      if (!formData.trader_equity_usd) e.trader_equity_usd = 'Trader equity is required.';
+      if (!formData.finance_facility_usd) e.finance_facility_usd = 'Finance facility amount is required.';
+      
       const equityPct = (formData.trader_equity_usd || 0) / (formData.procurement_cost_usd || 1);
-      if (equityPct < 0.35) {
-        onNotify('Minimum equity must be 35% of procurement cost.', 'error');
-        return false;
-      }
+      if (equityPct < 0.35) e.trader_equity_usd = 'Minimum equity must be 35% of procurement cost.';
+      
       const total = (formData.trader_equity_usd || 0) + (formData.finance_facility_usd || 0);
       if (Math.abs(total - (formData.procurement_cost_usd || 0)) > 10) {
-        onNotify('Equity + Facility must equal Procurement Cost.', 'error');
-        return false;
+        e.finance_facility_usd = 'Equity + Facility must equal Procurement Cost.';
       }
     }
+
+    if (Object.keys(e).length > 0) {
+      setErrors(e);
+      onNotify('Please complete the highlighted fields.', 'error');
+      return false;
+    }
+    setErrors({});
     return true;
   };
 
@@ -89,6 +118,7 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ onSuccess, onNotify }
     setLoading(true);
     try {
       const result = await apiClient.createTrade(formData as TradeApplicationInput);
+      setIsSubmitted(true); // Disable the guard
       onNotify('Application submitted successfully!', 'success');
       onSuccess(result);
     } catch (err: any) {
@@ -129,52 +159,72 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ onSuccess, onNotify }
       <div className="fade-in">
         {step === 1 && (
           <div className="g2" style={{ gap: '32px' }}>
-            <div>
+            <div className="field">
               <label>Commodity *</label>
-              <select name="commodity" value={formData.commodity} onChange={handleChange}>
-                <option value="cashew">Cashew</option>
-                <option value="shea">Shea</option>
-                <option value="sesame">Sesame</option>
-                <option value="sorghum">Sorghum</option>
-                <option value="soya">Soya</option>
-              </select>
+              <CustomSelect 
+                name="commodity" 
+                value={formData.commodity} 
+                onChange={handleChange}
+                options={Object.entries(CMD).map(([val, cfg]) => ({ label: cfg.l, value: val }))}
+                error={!!errors.commodity}
+              />
+              {errors.commodity && <div className="field-error">{errors.commodity}</div>}
             </div>
-            <div>
+            <div className="field">
               <label>Grade *</label>
-              <select name="grade" value={formData.grade} onChange={handleChange}>
-                <option value="A">Grade A</option>
-                <option value="B">Grade B</option>
-                <option value="C">Grade C</option>
-              </select>
+              <CustomSelect 
+                name="grade" 
+                value={formData.grade} 
+                onChange={handleChange}
+                options={[
+                  { label: 'Grade A', value: 'A' },
+                  { label: 'Grade B', value: 'B' },
+                  { label: 'Grade C', value: 'C' }
+                ]}
+                error={!!errors.grade}
+              />
+              {errors.grade && <div className="field-error">{errors.grade}</div>}
             </div>
-            <div>
+            <div className="field">
                 <label>Buyer *</label>
-                <select name="buyer_id" value={formData.buyer_id} onChange={handleChange}>
-                    <option value="">Select Buyer</option>
-                    {buyers.map(b => (
-                        <option key={b.id} value={b.id}>{b.name} ({b.country})</option>
-                    ))}
-                </select>
+                <CustomSelect 
+                  name="buyer_id" 
+                  value={formData.buyer_id} 
+                  onChange={handleChange}
+                  placeholder="Select Buyer"
+                  options={buyers.map(b => ({ label: `${b.name} (${b.country})`, value: b.id }))}
+                  error={!!errors.buyer_id}
+                />
+                {errors.buyer_id && <div className="field-error">{errors.buyer_id}</div>}
             </div>
-            <div>
+            <div className="field">
               <label>Volume (MT) *</label>
-              <input name="volume_mt" type="number" placeholder="e.g. 120" value={formData.volume_mt || ''} onChange={handleChange} />
+              <input name="volume_mt" type="number" placeholder="e.g. 120" value={formData.volume_mt || ''} onChange={handleChange} className={errors.volume_mt ? 'err' : ''} />
+              {errors.volume_mt && <div className="field-error">{errors.volume_mt}</div>}
             </div>
-            <div>
+            <div className="field">
               <label>Price/MT (USD) *</label>
-              <input name="price_per_mt_usd" type="number" placeholder="e.g. 1450" value={formData.price_per_mt_usd || ''} onChange={handleChange} />
+              <input name="price_per_mt_usd" type="number" placeholder="e.g. 1450" value={formData.price_per_mt_usd || ''} onChange={handleChange} className={errors.price_per_mt_usd ? 'err' : ''} />
+              {errors.price_per_mt_usd && <div className="field-error">{errors.price_per_mt_usd}</div>}
             </div>
-            <div>
+            <div className="field">
               <label>Calculated Contract Value</label>
               <input type="text" value={formData.volume_mt && formData.price_per_mt_usd ? `$${(formData.volume_mt * formData.price_per_mt_usd).toLocaleString()}` : '$0'} readOnly style={{ background: '#F8FAFC' }} />
             </div>
-            <div>
+            <div className="field">
               <label>Delivery Point *</label>
-              <input name="delivery_point" type="text" placeholder="e.g. Tema Port" value={formData.delivery_point} onChange={handleChange} />
+              <input name="delivery_point" type="text" placeholder="e.g. Tema Port" value={formData.delivery_point} onChange={handleChange} className={errors.delivery_point ? 'err' : ''} />
+              {errors.delivery_point && <div className="field-error">{errors.delivery_point}</div>}
             </div>
-            <div>
+            <div className="field">
               <label>Deadline *</label>
-              <input name="deadline_date" type="date" value={formData.deadline_date} onChange={handleChange} />
+              <CustomDatePicker 
+                name="deadline_date" 
+                value={formData.deadline_date} 
+                onChange={handleChange} 
+                error={!!errors.deadline_date}
+              />
+              {errors.deadline_date && <div className="field-error">{errors.deadline_date}</div>}
             </div>
           </div>
         )}
@@ -186,26 +236,36 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ onSuccess, onNotify }
               <p style={{ lineHeight: '1.6' }}>Minimum 35% of procurement cost as equity into TradeVault escrow within 5 business days of approval. Finance partner is paid first from any proceeds.</p>
             </div>
             <div className="g2" style={{ gap: '32px' }}>
-              <div>
+              <div className="field">
                 <label>Procurement Cost (USD) *</label>
-                <input name="procurement_cost_usd" type="number" value={formData.procurement_cost_usd || ''} onChange={handleChange} />
+                <input name="procurement_cost_usd" type="number" value={formData.procurement_cost_usd || ''} onChange={handleChange} className={errors.procurement_cost_usd ? 'err' : ''} />
+                {errors.procurement_cost_usd && <div className="field-error">{errors.procurement_cost_usd}</div>}
                 <p style={{ fontSize: '12px', color: '#6B7280', marginTop: '6px' }}>Standard estimate is 80% of contract value.</p>
               </div>
-              <div>
+              <div className="field">
                 <label>Trader Equity (USD) *</label>
-                <input name="trader_equity_usd" type="number" value={formData.trader_equity_usd || ''} onChange={handleChange} />
+                <input name="trader_equity_usd" type="number" value={formData.trader_equity_usd || ''} onChange={handleChange} className={errors.trader_equity_usd ? 'err' : ''} />
+                {errors.trader_equity_usd && <div className="field-error">{errors.trader_equity_usd}</div>}
               </div>
-              <div>
+              <div className="field">
                 <label>Finance Facility Required (USD) *</label>
-                <input name="finance_facility_usd" type="number" value={formData.finance_facility_usd || ''} onChange={handleChange} />
+                <input name="finance_facility_usd" type="number" value={formData.finance_facility_usd || ''} onChange={handleChange} className={errors.finance_facility_usd ? 'err' : ''} />
+                {errors.finance_facility_usd && <div className="field-error">{errors.finance_facility_usd}</div>}
               </div>
-              <div>
+              <div className="field">
                 <label>Payment Terms *</label>
-                <select name="payment_terms_days" value={formData.payment_terms_days} onChange={handleChange}>
-                  <option value={30}>30 days</option>
-                  <option value={45}>45 days</option>
-                  <option value={60}>60 days</option>
-                </select>
+                <CustomSelect 
+                  name="payment_terms_days" 
+                  value={formData.payment_terms_days} 
+                  onChange={handleChange}
+                  error={!!errors.payment_terms_days}
+                  options={[
+                    { label: '30 days', value: 30 },
+                    { label: '45 days', value: 45 },
+                    { label: '60 days', value: 60 }
+                  ]}
+                />
+                {errors.payment_terms_days && <div className="field-error">{errors.payment_terms_days}</div>}
               </div>
             </div>
             <div style={{ marginTop: '20px', fontWeight: 'bold', color: formData.trader_equity_usd && formData.procurement_cost_usd && (formData.trader_equity_usd / formData.procurement_cost_usd < 0.35) ? 'var(--da)' : 'var(--su)' }}>

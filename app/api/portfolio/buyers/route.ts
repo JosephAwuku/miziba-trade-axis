@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
     }
 
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
 
     // Fetch all buyers with their trade performance history
     const { data: buyers, error } = await admin

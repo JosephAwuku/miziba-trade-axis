@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 403 });
     }
 
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
 
     // Fetch organizations that are traders and under review
     // Join with trader_profiles to get bank info

@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { profile } = auth;
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
 
     const { data: org, error } = await admin
       .from('organisations')
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'STEP_REQUIRED' }, { status: 400 });
     }
 
-    const admin = await supabaseAdmin();
+    const admin = supabaseAdmin;
 
     // In a real system we'd verify the column exists or use a metadata field.
     // For this build, we try to update onboarding_step.

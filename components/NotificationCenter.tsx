@@ -5,6 +5,7 @@ import { Notification } from '@/lib/types';
 import { apiClient } from '@/lib/api';
 import { timeAgo } from '@/lib/utils';
 import { Button } from './ui';
+import { supabase } from '@/lib/supabase/client';
 
 interface NotificationCenterProps {
   onNotify: (msg: string, type?: string) => void;
@@ -14,12 +15,15 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNotify }) => 
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
+  const [activeToast, setActiveToast] = useState<Notification | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const unreadCount = notifications.filter(n => !n.read_at).length;
 
   const fetchNotifications = async () => {
     try {
+      if (!apiClient.isAuthenticated()) return;
       setLoading(true);
       const data = await apiClient.getNotifications();
       setNotifications(data);
@@ -30,8 +34,50 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNotify }) => 
     }
   };
 
+  const showToast = (notif: Notification) => {
+    setActiveToast(notif);
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    toastTimeoutRef.current = setTimeout(() => setActiveToast(null), 8000);
+  };
+
   useEffect(() => {
+    let isMounted = true;
     fetchNotifications();
+    let channel: any;
+
+    // Set up Real-time subscription
+    const setupRealtime = async () => {
+      try {
+        if (!apiClient.isAuthenticated()) return;
+        const user = await apiClient.getMe();
+        if (!isMounted || !user || !supabase) return;
+
+        // Ensure we don't pick up an old channel from the cache that might already be subscribed
+        const channelName = `notifications:${user.id}:${Math.random().toString(36).slice(2, 9)}`;
+        
+        channel = supabase
+          .channel(channelName)
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'notifications',
+              filter: `user_id=eq.${user.id}`,
+            },
+            (payload) => {
+              const newNotif = payload.new as Notification;
+              setNotifications((prev) => [newNotif, ...prev]);
+              showToast(newNotif);
+            }
+          )
+          .subscribe();
+      } catch (err) {
+        console.error('Real-time setup failed:', err);
+      }
+    };
+
+    setupRealtime();
     
     // Close on outside click
     const handleClickOutside = (event: MouseEvent) => {
@@ -40,7 +86,13 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNotify }) => 
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    
+    return () => {
+      isMounted = false;
+      document.removeEventListener('mousedown', handleClickOutside);
+      if (channel) supabase?.removeChannel(channel);
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    };
   }, []);
 
   const handleToggle = () => {
@@ -110,11 +162,43 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNotify }) => 
         )}
       </button>
 
+      {/* Toast Notification */}
+      {activeToast && !isOpen && (
+        <div 
+          onClick={() => { setIsOpen(true); setActiveToast(null); }}
+          style={{
+            position: 'absolute',
+            top: '44px',
+            right: 0,
+            width: '280px',
+            background: 'var(--nv)',
+            color: '#fff',
+            borderRadius: '10px',
+            padding: '12px 14px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+            zIndex: 1100,
+            cursor: 'pointer',
+            border: '1px solid rgba(255,255,255,0.1)',
+          }}
+          className="fade-in"
+        >
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+            <div style={{ fontSize: '18px' }}>🔔</div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '12px', fontWeight: 700, marginBottom: '2px' }}>{activeToast.subject}</div>
+              <div style={{ fontSize: '11px', opacity: 0.8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {activeToast.body}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Dropdown Menu */}
       {isOpen && (
         <div style={{
           position: 'absolute',
-          top: '40px',
+          top: '44px',
           right: 0,
           width: '320px',
           background: '#fff',
