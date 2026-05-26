@@ -103,7 +103,7 @@ TradeAxisAccountActivationEmail.PreviewProps = {
   temporaryPassword: 'Welcome123!',
   roleLabel: 'Trader',
   orgName: 'Example Co',
-  loginUrl: 'https://example.com',
+  loginUrl: 'https://tradeaxis.miziba.com',
 } satisfies TradeAxisAccountActivationEmailProps;
 
 const main = {
