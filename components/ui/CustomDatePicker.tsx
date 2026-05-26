@@ -12,9 +12,9 @@ interface CustomDatePickerProps {
   error?: string | boolean;
 }
 
-export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({ 
-  value, 
-  onChange, 
+export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
+  value,
+  onChange,
   name,
   placeholder = "Select Date",
   className = "",
@@ -38,7 +38,7 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
       }
     }
   }, [isOpen]);
-  
+
   // Internal view state (what month we are looking at)
   const [viewDate, setViewDate] = useState(() => {
     if (value) return new Date(value);
@@ -68,15 +68,15 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
   const daysInMonth = useMemo(() => {
     const lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
     const firstDayIndices = new Date(currentYear, currentMonth, 1).getDay();
-    
+
     const days = [];
     // Padding from prev month
     for (let i = 0; i < firstDayIndices; i++) {
-        days.push(null);
+      days.push(null);
     }
     // Days of this month
     for (let i = 1; i <= lastDay; i++) {
-        days.push(new Date(currentYear, currentMonth, i));
+      days.push(new Date(currentYear, currentMonth, i));
     }
     return days;
   }, [currentYear, currentMonth]);
@@ -91,17 +91,17 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
   const todayStr = new Date().toDateString();
 
   return (
-    <div 
-      ref={containerRef} 
-      className={`custom-datepicker-container ${className}`} 
-      style={{ 
-        position: 'relative', 
+    <div
+      ref={containerRef}
+      className={`custom-datepicker-container ${className}`}
+      style={{
+        position: 'relative',
         width: '100%',
         zIndex: isOpen ? 1000 : 1,
-        ...style 
+        ...style
       }}
     >
-      <div 
+      <div
         className={`custom-datepicker-display ${isOpen ? 'open' : ''}`}
         onClick={() => setIsOpen(!isOpen)}
         style={{
@@ -110,8 +110,8 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
           padding: '14px 40px 14px 16px',
           width: '100%',
           color: value ? 'var(--text)' : 'var(--text3)',
-          background: error 
-            ? 'var(--da-bg)' 
+          background: error
+            ? 'var(--da-bg)'
             : 'linear-gradient(#fff, #fff) padding-box, linear-gradient(135deg, var(--cr), var(--pu)) border-box',
           border: error ? '2px solid var(--da)' : '2px solid transparent',
           cursor: 'pointer',
@@ -124,7 +124,7 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
         }}
       >
         <span>{value ? new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : placeholder}</span>
-        
+
         {/* Calendar Icon */}
         <div style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', display: 'flex' }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--nv)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -137,7 +137,7 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
       </div>
 
       {isOpen && (
-        <div 
+        <div
           className="custom-datepicker-menu fade-in"
           style={{
             position: 'absolute',
@@ -155,7 +155,7 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
         >
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <button 
+            <button
               onClick={() => shiftMonth(-1)}
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: 'var(--nv)' }}
             >
@@ -164,7 +164,7 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
             <div style={{ fontWeight: 800, color: 'var(--nv)', fontSize: '14px' }}>
               {monthName} {currentYear}
             </div>
-            <button 
+            <button
               onClick={() => shiftMonth(1)}
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: 'var(--nv)' }}
             >
@@ -183,12 +183,12 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
             {daysInMonth.map((date, i) => {
               if (!date) return <div key={`empty-${i}`} />;
-              
+
               const isSelected = date.toDateString() === selectedDateStr;
               const isToday = date.toDateString() === todayStr;
 
               return (
-                <div 
+                <div
                   key={date.toISOString()}
                   onClick={() => handleSelect(date)}
                   style={{
@@ -216,22 +216,22 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
           </div>
 
           <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'center' }}>
-             <button 
-                onClick={() => handleSelect(new Date())}
-                style={{ 
-                    background: 'none', 
-                    border: 'none', 
-                    color: 'var(--pu)', 
-                    fontSize: '11px', 
-                    fontWeight: 700, 
-                    cursor: 'pointer',
-                    padding: '4px 8px',
-                    borderRadius: '6px'
-                }}
-                className="today-btn"
-             >
-                TODAY
-             </button>
+            <button
+              onClick={() => handleSelect(new Date())}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--pu)',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                padding: '4px 8px',
+                borderRadius: '6px'
+              }}
+              className="today-btn"
+            >
+              TODAY
+            </button>
           </div>
         </div>
       )}

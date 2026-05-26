@@ -1,4 +1,4 @@
-export type Role = 'deal_officer' | 'ceo' | 'cfo' | 'trader' | 'finance_partner' | 'ops_admin' | 'fp' | '__system__' | null;
+export type Role = 'deal_officer' | 'ceo' | 'cfo' | 'trader' | 'finance_partner' | 'ops_admin' | '__system__' | null;
 
 export type View =
   | 'pipeline'
@@ -6,6 +6,8 @@ export type View =
   | 'portfolio'
   | 'risk_calc'
   | 'buyers'
+  | 'aggregators'
+  | 'aggregator_edit'
   | 'fp_crm'
   | 'settle'
   | 'cfo_overview'
@@ -16,7 +18,9 @@ export type View =
   | 'trs_overview'
   | 'trs_status'
   | 'trs_apply'
+  | 'trs_drafts'
   | 'trs_docs'
+  | 'trs_company'
   | 'trs_settle'
   | 'trs_verify'
   | 'fp_overview'
@@ -26,8 +30,12 @@ export type View =
   | 'fp_reports'
   | 'fp_onboarding'
   | 'admin_onboard'
+  | 'admin_user_edit'
+  | 'buyer_edit'
   | 'admin_directory'
-  | 'admin_verify';
+  | 'admin_verify'
+  | 'admin_notifications'
+  | 'admin_audit';
 
 export interface Trade {
   id: string;
@@ -56,6 +64,9 @@ export interface Trade {
     | 'DELIVERED'
     | 'SETTLED'
     | 'CLOSED';
+  /** Company (organisation) KYC — one-time trader verification, not trade documents */
+  traderOrgKyc: 'PENDING' | 'UNDER_REVIEW' | 'FLAGGED' | 'VERIFIED' | 'REJECTED';
+  /** @deprecated Legacy trade row field; use traderOrgKyc for company status */
   kyc: 'PENDING' | 'FLAGGED' | 'VERIFIED';
   risk: number | null;
   off: string;
@@ -164,6 +175,7 @@ export interface TradeApplicationInput {
   delivery_point: string;
   deadline_date: string;
   payment_terms_days: number;
+  draft_id?: string;
 }
 
 export interface TradeSummary {
@@ -176,7 +188,10 @@ export interface TradeSummary {
   contract_value_usd: number;
   finance_facility_usd: number;
   stage: string;
+  /** Legacy column on trades row — do not use for company KYC display */
   kyc_status: string;
+  /** Trader organisation company KYC from organisations.kyc_status */
+  trader_org_kyc_status: string;
   risk_score: number | null;
   capital_deployed_pct: number;
   deadline_date: string;
@@ -188,23 +203,23 @@ export interface TradeSummary {
 export interface ValidationChecklist {
   business: {
     completed: boolean;
-    items: Array<{ id: string; label: string; status: boolean }>;
+    items: Array<{ id: string; label: string; status: boolean; notes?: string }>;
   };
   product: {
     completed: boolean;
-    items: Array<{ id: string; label: string; status: boolean }>;
+    items: Array<{ id: string; label: string; status: boolean; notes?: string }>;
   };
   shipping: {
     completed: boolean;
-    items: Array<{ id: string; label: string; status: boolean }>;
+    items: Array<{ id: string; label: string; status: boolean; notes?: string }>;
   };
   kyc: {
     completed: boolean;
-    items: Array<{ id: string; label: string; status: boolean }>;
+    items: Array<{ id: string; label: string; status: boolean; notes?: string }>;
   };
   risk: {
     completed: boolean;
-    items: Array<{ id: string; label: string; status: boolean }>;
+    items: Array<{ id: string; label: string; status: boolean; notes?: string }>;
   };
 }
 
@@ -234,6 +249,7 @@ export interface RiskAssessment {
   trade_id: string;
   risk_score: number;
   breakdown: RiskBreakdown;
+  notes?: string;
   recommendations: string[];
   calculated_at: string;
   assessed_by?: string;
@@ -289,6 +305,7 @@ export interface Notification {
   body: string;
   sent_at?: string;
   read_at?: string;
+  created_at?: string;
 }
 
 export interface PortfolioMetrics {

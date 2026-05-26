@@ -3,6 +3,13 @@ import { supabaseAdmin } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
 
 export async function GET() {
+  // Guard: only allow seeding when explicitly enabled via environment variable.
+  // Set ALLOW_SEED=true in .env.local for local development only.
+  // This variable must NEVER be set in production.
+  if (process.env.ALLOW_SEED !== 'true') {
+    return NextResponse.json({ error: 'FORBIDDEN', message: 'Seeding is disabled in this environment.' }, { status: 403 });
+  }
+
   try {
     const admin = supabaseAdmin;
     if (!admin) {
@@ -91,8 +98,10 @@ export async function GET() {
           role: u.role,
           org_id: u.org_id,
           password_hash: defaultPassword,
-          totp_enabled: false, // Turn off 2FA requirement for ease of demo, or we can handle it later
-          is_active: true
+          totp_enabled: false,
+          is_active: true,
+          // Seed users are treated as pre-onboarded (they existed before this flow).
+          // must_change_password defaults to FALSE per migration back-fill.
         });
         if (error) throw error;
       }

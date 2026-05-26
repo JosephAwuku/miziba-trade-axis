@@ -12,15 +12,25 @@ interface RiskAssessmentToolProps {
 }
 
 const RiskAssessmentTool: React.FC<RiskAssessmentToolProps> = ({ initialData, onSave, loading }) => {
+  const defaultScores: RiskBreakdown = {
+    buyer_risk: 0,
+    trader_risk: 0,
+    commodity_price_risk: 0,
+    sourcing_supply_risk: 0,
+    logistics_delivery_risk: 0,
+  };
+
   const [scores, setScores] = useState<RiskBreakdown>(
-    initialData?.breakdown || {
-      buyer_risk: 0,
-      trader_risk: 0,
-      commodity_price_risk: 0,
-      sourcing_supply_risk: 0,
-      logistics_delivery_risk: 0,
-    }
+    initialData?.breakdown || defaultScores
   );
+
+  const [notes, setNotes] = useState(initialData?.notes || '');
+
+  // Keep calculator bound to latest persisted assessment from API.
+  useEffect(() => {
+    setScores(initialData?.breakdown || defaultScores);
+    setNotes(initialData?.notes || '');
+  }, [initialData]);
 
   const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
   const rec = getRiskRecommendation(totalScore);
@@ -33,10 +43,14 @@ const RiskAssessmentTool: React.FC<RiskAssessmentToolProps> = ({ initialData, on
     onSave({
       risk_score: totalScore,
       breakdown: scores,
+      notes: notes,
       recommendations: [rec.label, rec.desc],
       calculated_at: new Date().toISOString(),
     });
   };
+
+  const primaryDimensions = RISK_DIMENSIONS.filter((dim) => dim.key !== 'logistics_delivery_risk');
+  const logisticsDimension = RISK_DIMENSIONS.find((dim) => dim.key === 'logistics_delivery_risk');
 
   return (
     <div className="fade-in">
@@ -61,7 +75,7 @@ const RiskAssessmentTool: React.FC<RiskAssessmentToolProps> = ({ initialData, on
           <span>0</span>
           <span style={{ color: '#991B1B' }}>40 Decline</span>
           <span style={{ color: '#D97706' }}>55 Moderate</span>
-          <span style={{ color: '#16A34A' }}>75 Low</span>
+          <span style={{ color: '#8B0000' }}>75 Low</span>
           <span>100</span>
         </div>
         <div style={{ 
@@ -80,10 +94,10 @@ const RiskAssessmentTool: React.FC<RiskAssessmentToolProps> = ({ initialData, on
       </Card>
 
       <div className="g2" style={{ marginBottom: '16px' }}>
-        {RISK_DIMENSIONS.map((dim) => {
+        {primaryDimensions.map((dim) => {
           const s = scores[dim.key];
           const pct = Math.round((s / dim.max) * 100);
-          const dc = pct >= 70 ? '#16A34A' : pct >= 45 ? '#D97706' : '#DC2626';
+          const dc = pct >= 70 ? '#8B0000' : pct >= 45 ? '#D97706' : '#DC2626';
 
           return (
             <Card key={dim.key} style={{ padding: '16px' }}>
@@ -138,9 +152,80 @@ const RiskAssessmentTool: React.FC<RiskAssessmentToolProps> = ({ initialData, on
         })}
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-        <Button variant="secondary" onClick={() => setScores(initialData?.breakdown || { buyer_risk: 0, trader_risk: 0, commodity_price_risk: 0, sourcing_supply_risk: 0, logistics_delivery_risk: 0 })}>Reset</Button>
-        <Button variant="primary" onClick={handleSave} disabled={loading}>{loading ? 'Saving...' : 'Save Assessment'}</Button>
+      <div className="g2" style={{ marginBottom: '16px' }}>
+        {logisticsDimension && (() => {
+          const s = scores[logisticsDimension.key];
+          const pct = Math.round((s / logisticsDimension.max) * 100);
+          const dc = pct >= 70 ? '#8B0000' : pct >= 45 ? '#D97706' : '#DC2626';
+
+          return (
+            <Card key={logisticsDimension.key} style={{ padding: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <div>
+                  <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text)' }}>{logisticsDimension.label}</div>
+                  <div style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 600 }}>{logisticsDimension.weight} · Max {logisticsDimension.max}pts</div>
+                </div>
+                <span className="mono" style={{ fontSize: '26px', fontWeight: 800, color: dc }}>{s}</span>
+              </div>
+              <ProgressBar value={pct} color={dc} height="6px" />
+              <div style={{ marginTop: '12px' }}>
+                {logisticsDimension.tiers.map((tier) => (
+                  <div
+                    key={tier.label}
+                    className={`risk-tier ${s === tier.score ? 'sel' : ''}`}
+                    onClick={() => handleSetScore(logisticsDimension.key, tier.score)}
+                    style={{
+                      display: 'flex',
+                      gap: '9px',
+                      padding: '8px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      marginBottom: '4px',
+                      border: '1px solid transparent',
+                      backgroundColor: s === tier.score ? 'var(--cr-bg)' : 'transparent',
+                      borderColor: s === tier.score ? 'var(--cr-b)' : 'transparent',
+                      transition: 'all 0.1s'
+                    }}
+                  >
+                    <span
+                      className="mono"
+                      style={{
+                        fontSize: '14px',
+                        fontWeight: 700,
+                        color: s === tier.score ? 'var(--cr)' : '#9CA3AF',
+                        width: '24px',
+                        textAlign: 'right',
+                        flexShrink: 0
+                      }}
+                    >
+                      {tier.score}
+                    </span>
+                    <span style={{ fontSize: '14px', color: s === tier.score ? 'var(--text)' : '#6B7280', fontWeight: 500, lineHeight: '1.5' }}>
+                      {tier.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          );
+        })()}
+
+        <Card title="QUALITATIVE JUSTIFICATION" style={{ padding: '16px' }}>
+          <textarea
+            placeholder="Enter detailed reasoning for this risk assessment..."
+            style={{ width: '100%', height: '100px', padding: '12px', borderRadius: '8px', border: '1px solid #E5E7EB', fontSize: '14px' }}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
+        </Card>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
+        <Button variant="secondary" onClick={() => {
+          setScores(initialData?.breakdown || defaultScores);
+          setNotes(initialData?.notes || '');
+        }} style={{ minWidth: '180px' }}>Reset</Button>
+        <Button variant="primary" onClick={handleSave} disabled={loading} style={{ minWidth: '180px' }}>{loading ? 'Saving...' : 'Save Assessment'}</Button>
       </div>
     </div>
   );

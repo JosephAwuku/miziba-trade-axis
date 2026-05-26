@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, getAuthenticatedUser } from '@/lib/supabase';
 import { hasPermission, checkOwnership } from '@/lib/rbac';
-import { calculateWaterfall } from '@/lib/business-logic';
+import { calculateWaterfall, checkStageTransitionGuards, validateStageTransition } from '@/lib/business-logic';
 import { generateFDPBuffer, FDPSummary } from '@/lib/pdf-service';
 import { uploadFDP } from '@/lib/supabase/storage';
 
@@ -12,7 +12,9 @@ export async function GET(
 ) {
   try {
     const { id: tradeId } = await params;
-    const auth = await getAuthenticatedUser();
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+    const auth = await getAuthenticatedUser(token);
 
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -79,7 +81,9 @@ export async function POST(
 ) {
   try {
     const { id: tradeId } = await params;
-    const auth = await getAuthenticatedUser();
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+    const auth = await getAuthenticatedUser(token);
 
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -91,7 +95,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { action } = body; // e.g., 'generate', 'send_to_fp'
+    const action = body?.action || 'generate'; // default matches frontend call
 
     const admin = supabaseAdmin;
     const { data: trade, error: tradeError } = await admin
@@ -113,6 +117,32 @@ export async function POST(
     const tradeData = trade as any;
 
     if (action === 'generate') {
+      // FDP may only advance a trade already in VALIDATED, with full Finance Review prerequisites
+      if (tradeData.stage !== 'VALIDATED') {
+        return NextResponse.json(
+          {
+            error: 'INVALID_STAGE',
+            message:
+              'Finance Data Package can only be generated once the trade is VALIDATED (validation checklist complete and risk assessed).',
+            current_stage: tradeData.stage,
+          },
+          { status: 400 }
+        );
+      }
+
+      const guards = await checkStageTransitionGuards(admin, tradeId, 'FINANCE_REVIEW');
+      const transition = validateStageTransition(tradeData.stage, 'FINANCE_REVIEW', guards);
+      if (!transition.allowed) {
+        return NextResponse.json(
+          {
+            error: 'INVALID_TRANSITION',
+            message: transition.reason,
+            guards,
+          },
+          { status: 400 }
+        );
+      }
+
       // Mark old FDPs as not current
       await (admin
         .from('finance_data_packages') as any)
@@ -169,13 +199,19 @@ export async function POST(
 
       if (fdpError) throw fdpError;
 
-      // Update trade stage
+      // Advance to FINANCE_REVIEW only after guards pass (already validated above)
       await (admin
         .from('trades') as any)
         .update({ stage: 'FINANCE_REVIEW', updated_at: new Date().toISOString() })
         .eq('id', tradeId);
 
-      return NextResponse.json({ success: true, fdp });
+      return NextResponse.json({
+        success: true,
+        fdp,
+        advanced_to_finance_review: true,
+        message: 'FDP generated and trade advanced to FINANCE_REVIEW.',
+        requires_ceo_approval: false,
+      });
 
     } else if (action === 'send_to_fp') {
       const { data: fdp } = await admin

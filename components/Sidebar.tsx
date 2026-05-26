@@ -1,16 +1,26 @@
 "use client";
 
 import React from 'react';
-import { Role, View, Trade } from '@/lib/types';
-import { usd } from '@/lib/utils';
+import { Role, View } from '@/lib/types';
+import { UsersManagementIcon } from '@/components/icons/UsersManagementIcon';
+import { SystemOverviewIcon } from '@/components/icons/SystemOverviewIcon';
+import { AuditLogIcon } from '@/components/icons/AuditLogIcon';
+import { RequiredActionIcon } from '@/components/icons/RequiredActionIcon';
+import { TradeApplicationIcon } from '@/components/icons/TradeApplicationIcon';
+import { BuyerDatabaseIcon } from '@/components/icons/BuyerDatabaseIcon';
+import { AggregatorDatabaseIcon } from '@/components/icons/AggregatorDatabaseIcon';
+import { PortfolioIcon } from '@/components/icons/PortfolioIcon';
+import { CompanyProfileIcon } from '@/components/icons/CompanyProfileIcon';
+import { PaymentsIcon } from '@/components/icons/PaymentsIcon';
+import { PlusIcon } from '@/components/icons/PlusIcon';
+import { DraftsIcon } from '@/components/icons/DraftsIcon';
 
 interface SidebarProps {
   role: Role;
   view: View;
   deal: string | null;
-  trades: Trade[];
+  user?: { full_name?: string; email?: string } | null;
   onViewChange: (view: View) => void;
-  onLogout: () => void;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -19,25 +29,19 @@ const Sidebar: React.FC<SidebarProps> = ({
   role,
   view,
   deal,
+  user,
   onViewChange,
-  onLogout,
   isOpen,
   onClose,
-  trades,
 }) => {
-  const activeDealsCount = trades.filter(t => !['SETTLED', 'CLOSED'].includes(t.stage)).length;
-  const portfolioValue = trades.reduce((a, t) => a + t.cv, 0);
-  const rScores = trades.filter(t => t.risk);
-  const avgRiskScore = rScores.length ? Math.round(rScores.reduce((a, t) => a + (t.risk || 0), 0) / rScores.length) : 0;
-
   const getNavItems = () => {
     if (role === 'cfo') {
       return [
-        { id: 'cfo_overview', i: '⬢', l: 'Dashboard Overview' },
+        { id: 'cfo_overview', i: '⬢', l: 'Finance Officer Overview' },
         { id: 'pipeline', i: '▦', l: 'Trade Operations' },
         { id: 'settle', i: '◈', l: 'Settlement' },
         { id: 'portfolio', i: '◉', l: 'Portfolio' },
-        { id: 'fp_crm', i: '◆', l: 'Finance Partner CRM' },
+        { id: 'fp_crm', i: '◆', l: 'Finance Partners' },
         { id: 'risk_calc', i: '⬡', l: 'Risk Calculator' },
         { id: 'buyers', i: '●', l: 'Buyer Database' }
       ];
@@ -47,16 +51,16 @@ const Sidebar: React.FC<SidebarProps> = ({
         { id: 'trs_overview', i: '⬢', l: 'Dashboard Overview' },
         { id: 'trs_status', i: '◎', l: 'Trade Applications' },
         { id: 'trs_apply', i: '+', l: 'New Trade Application' },
-        { id: 'trs_verify', i: '✓', l: 'Company Verification' },
-        { id: 'trs_docs', i: '◈', l: 'Documents' },
-        { id: 'trs_settle', i: '⬢', l: 'Settlement' }
+        { id: 'trs_drafts', i: '📝', l: 'Drafts' },
+        { id: 'trs_company', i: '◈', l: 'Company Profile' },
+        { id: 'trs_settle', i: '⬢', l: 'Payments' }
       ];
     }
     if (role === 'finance_partner') {
       return [
-        { id: 'fp_overview', i: '⬢', l: 'Dashboard Overview' },
+        { id: 'fp_overview', i: '⬢', l: 'Finance Partner Overview' },
         { id: 'fp_inbox', i: '▦', l: 'Pending Requests' },
-        { id: 'fp_portfolio', i: '◈', l: 'My Portfolio' },
+        { id: 'fp_portfolio', i: '◈', l: 'Finance Partner Portfolio' },
         { id: 'fp_reports', i: '●', l: 'Settlement Reports' },
         { id: 'fp_onboarding', i: '⬢', l: 'Onboarding' }
       ];
@@ -66,39 +70,44 @@ const Sidebar: React.FC<SidebarProps> = ({
         { id: 'ceo_overview', i: '⬢', l: 'Strategic Overview' },
         { id: 'pipeline', i: '▦', l: 'Trade Operations' },
         { id: 'portfolio', i: '◈', l: 'Portfolio' },
-        { id: 'fp_crm', i: '◆', l: 'Finance Partner CRM' },
+        { id: 'fp_crm', i: '◆', l: 'Finance Partners' },
         { id: 'risk_calc', i: '⬡', l: 'Risk Calculator' },
         { id: 'buyers', i: '●', l: 'Buyer Database' },
-        { id: 'admin_onboard', i: '▦', l: 'User Management' }
+        { id: 'aggregators', i: '◐', l: 'Aggregator Database' },
+        { id: 'admin_onboard', i: '▦', l: 'User Management' },
+        { id: 'admin_verify', i: '◉', l: 'Required Action' },
+        { id: 'admin_audit', i: '◎', l: 'Audit Log' }
       ];
     }
     if (role === 'ops_admin') {
       return [
-        { id: 'ops_overview', i: '⬢', l: 'System Health' },
+        { id: 'ops_overview', i: '⬢', l: 'System Overview' },
         { id: 'admin_onboard', i: '▦', l: 'User Management' },
-        { id: 'buyers', i: '●', l: 'Buyer Database' }
+        { id: 'admin_verify', i: '◉', l: 'Required Action' },
+        { id: 'buyers', i: '●', l: 'Buyer Database' },
+        { id: 'aggregators', i: '◐', l: 'Aggregator Database' },
+        { id: 'pipeline', i: '▦', l: 'Trade Operations' },
+        { id: 'portfolio', i: '◈', l: 'Portfolio' },
+        { id: 'admin_audit', i: '◎', l: 'Audit Log' },
       ];
     }
-    return [
-      { id: 'pipeline', i: '▦', l: 'Trade Operations' },
-      { id: 'portfolio', i: '◈', l: 'Portfolio' },
-      { id: 'risk_calc', i: '⬡', l: 'Risk Calculator' },
-      { id: 'buyers', i: '●', l: 'Buyer Database' },
-      { id: 'fp_crm', i: '◆', l: 'Finance Partner CRM' }
-    ];
+    if (role === 'deal_officer') {
+      return [
+        { id: 'pipeline', i: '▦', l: 'Trade Operations' },
+        { id: 'portfolio', i: '◈', l: 'Portfolio' },
+        { id: 'risk_calc', i: '⬡', l: 'Risk Calculator' },
+        { id: 'buyers', i: '●', l: 'Buyer Database' },
+        { id: 'aggregators', i: '◐', l: 'Aggregator Database' },
+        { id: 'fp_crm', i: '◆', l: 'Finance Partners' }
+      ];
+    }
+    return [];
   };
 
   const navItems = getNavItems();
-  const roleLabel = {
-    deal_officer: 'Deal Officer',
-    ceo: 'Head of Trade / CEO',
-    cfo: 'CFO',
-    trader: 'Trader',
-    finance_partner: 'Finance Partner',
-    ops_admin: 'Operations Admin'
-  }[role as string] || role;
-
-  const isFP = role === 'finance_partner' || role === 'fp';
+  const isFP = role === 'finance_partner';
+  const displayName = user?.full_name?.trim() || 'Signed in';
+  const displayEmail = user?.email || '';
 
   return (
     <>
@@ -125,7 +134,6 @@ const Sidebar: React.FC<SidebarProps> = ({
               }}>
                 {isFP ? 'Ecobank DFI' : 'TradeAxis'}
               </div>
-              <div className="sb-ver" style={{ fontSize: '10px', opacity: 0.6, marginTop: '2px' }}>{roleLabel}</div>
             </div>
           </div>
         </div>
@@ -146,46 +154,66 @@ const Sidebar: React.FC<SidebarProps> = ({
                 onClose();
               }}
             >
-              <span className="nb-icon" style={{ 
-                opacity: view === n.id ? 1 : 0.5,
-                fontSize: '16px'
-              }}>{n.i}</span>
+              <span
+                className="nb-icon"
+                style={{
+                  opacity: view === n.id ? 1 : 0.5,
+                  fontSize: "16px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "inherit",
+                }}
+              >
+                {n.id === "admin_onboard" ? (
+                  <UsersManagementIcon size={18} style={{ opacity: 1 }} />
+                ) : n.id === "ops_overview" ? (
+                  <SystemOverviewIcon size={18} style={{ opacity: 1 }} />
+                ) : n.id === "trs_overview" ? (
+                  <SystemOverviewIcon size={18} style={{ opacity: 1 }} />
+                ) : n.id === "trs_company" ? (
+                  <CompanyProfileIcon size={18} style={{ opacity: 1 }} />
+                ) : n.id === "trs_settle" ? (
+                  <PaymentsIcon size={18} style={{ opacity: 1 }} />
+                ) : n.id === "trs_apply" ? (
+                  <PlusIcon size={18} style={{ opacity: 1 }} />
+                ) : n.id === "trs_drafts" ? (
+                  <DraftsIcon size={18} style={{ opacity: 1 }} />
+                ) : n.id === "admin_audit" ? (
+                  <AuditLogIcon size={18} style={{ opacity: 1 }} />
+                ) : n.id === "admin_verify" ? (
+                  <RequiredActionIcon size={18} style={{ opacity: 1 }} />
+                ) : n.id === "pipeline" ? (
+                  <TradeApplicationIcon size={18} style={{ opacity: 1 }} />
+                ) : n.id === "trs_status" ? (
+                  <TradeApplicationIcon size={18} style={{ opacity: 1 }} />
+                ) : n.id === "portfolio" || n.id === "fp_portfolio" ? (
+                  <PortfolioIcon size={18} style={{ opacity: 1 }} />
+                ) : n.id === "buyers" ? (
+                  <BuyerDatabaseIcon size={18} style={{ opacity: 1 }} />
+                ) : n.id === "aggregators" ? (
+                  <AggregatorDatabaseIcon size={18} style={{ opacity: 1 }} />
+                ) : (
+                  n.i
+                )}
+              </span>
               <span style={{ fontWeight: view === n.id ? 700 : 500 }}>{n.l}</span>
             </button>
           ))}
         </nav>
 
-        {role !== 'trader' && (
-          <div className="sb-snap" style={{ borderTop: '1px solid var(--bdr)', background: '#F8FAFC' }}>
-            <div style={{ color: '#64748B', fontSize: '10px', fontWeight: 800, letterSpacing: '.08em', marginBottom: '8px', padding: '0 4px' }}>OPERATIONAL SNAPSHOT</div>
-            <div className="snap-row" style={{ color: '#475569', padding: '0 4px' }}>
-              <span>Active deals</span>
-              <span className="mono" style={{ color: 'var(--text)', fontWeight: 700 }}>{activeDealsCount}</span>
-            </div>
-            <div className="snap-row" style={{ color: '#475569', padding: '0 4px' }}>
-              <span>Portfolio value</span>
-              <span className="mono" style={{ color: 'var(--text)', fontWeight: 700 }}>{usd(portfolioValue)}</span>
-            </div>
-            <div className="snap-row" style={{ color: '#475569', padding: '0 4px' }}>
-              <span>Avg risk score</span>
-              <span className="mono" style={{ color: 'var(--text)', fontWeight: 700 }}>{avgRiskScore}/100</span>
-            </div>
-            <div className="snap-row" style={{ color: '#475569', padding: '0 4px' }}>
-              <span>Default rate</span>
-              <span className="mono" style={{ color: '#16A34A', fontWeight: 700 }}>0%</span>
-            </div>
-          </div>
-        )}
-
         <div className="sb-user" style={{ borderTop: '1px solid var(--bdr)' }}>
 
           <div style={{ minWidth: 0 }}>
-            <div style={{ color: 'var(--text)', fontSize: '13px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {role === 'finance_partner' ? 'Relationship Manager' : 'Operations Staff'}
+            <div style={{ color: 'var(--text)', fontSize: '15px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {displayName}
             </div>
-            <div style={{ color: '#64748B', fontSize: '11px', fontWeight: 500 }}>{roleLabel}</div>
+            {displayEmail && (
+              <div style={{ color: '#64748B', fontSize: '12.5px', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {displayEmail}
+              </div>
+            )}
           </div>
-          <button className="logout-btn" style={{ color: '#94A3B8' }} onClick={onLogout}>⎏</button>
         </div>
       </div>
     </>

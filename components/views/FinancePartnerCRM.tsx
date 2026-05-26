@@ -35,7 +35,7 @@ const FinancePartnerCRM: React.FC = () => {
     <div className="fade-in">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
         <div style={{ flex: 1, minWidth: '280px' }}>
-          <h2 style={{ fontSize: '28px', fontWeight: 800, letterSpacing: '-0.03em', color: '#111827' }}>Finance Partner CRM</h2>
+          <h2 style={{ fontSize: '28px', fontWeight: 800, letterSpacing: '-0.03em', color: '#111827' }}>Finance Partners</h2>
           <p style={{ color: '#6B7280', fontSize: '14px', marginTop: '4px' }}>Manage capital provider relationships and liquidity deployment.</p>
         </div>
         <Button variant="primary" onClick={() => {}}>+ Invite Partner</Button>
@@ -92,7 +92,7 @@ const FinancePartnerCRM: React.FC = () => {
                 </div>
                 <div>
                   <div style={{ fontSize: '9px', color: '#9CA3AF', fontWeight: 700 }}>AVG RETURN</div>
-                  <div className="mono" style={{ fontSize: '14px', fontWeight: 700, color: '#16A34A' }}>12.4%</div>
+                  <div className="mono" style={{ fontSize: '14px', fontWeight: 700, color: '#8B0000' }}>12.4%</div>
                 </div>
               </div>
 

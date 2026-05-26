@@ -79,6 +79,9 @@ export interface Database {
           last_login_at: string | null
           password_reset_token: string | null
           password_reset_expires_at: string | null
+          must_change_password: boolean
+          mfa_enrolled_at: string | null
+          created_by: string | null
           created_at: string
           updated_at: string
         }
@@ -98,6 +101,9 @@ export interface Database {
           last_login_at?: string | null
           password_reset_token?: string | null
           password_reset_expires_at?: string | null
+          must_change_password?: boolean
+          mfa_enrolled_at?: string | null
+          created_by?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -117,6 +123,9 @@ export interface Database {
           last_login_at?: string | null
           password_reset_token?: string | null
           password_reset_expires_at?: string | null
+          must_change_password?: boolean
+          mfa_enrolled_at?: string | null
+          created_by?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -426,6 +435,61 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
+      }
+      aggregators: {
+        Row: {
+          id: string
+          name: string
+          country: string
+          registration_no: string | null
+          sanctions_clear: boolean
+          sanctions_checked_at: string | null
+          trades_completed: number
+          trades_on_time: number
+          trades_late: number
+          avg_days_late: number | null
+          disputes: number
+          creditworthiness_score: number | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          country: string
+          registration_no?: string | null
+          sanctions_clear?: boolean
+          sanctions_checked_at?: string | null
+          trades_completed?: number
+          trades_on_time?: number
+          trades_late?: number
+          avg_days_late?: number | null
+          disputes?: number
+          creditworthiness_score?: number | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          country?: string
+          registration_no?: string | null
+          sanctions_clear?: boolean
+          sanctions_checked_at?: string | null
+          trades_completed?: number
+          trades_on_time?: number
+          trades_late?: number
+          avg_days_late?: number | null
+          disputes?: number
+          creditworthiness_score?: number | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
     }
   }

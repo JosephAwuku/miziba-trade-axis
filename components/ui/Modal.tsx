@@ -8,6 +8,7 @@ interface ModalProps {
   children: React.ReactNode;
   dismissible?: boolean;
   title?: string;
+  maxWidth?: string;
 }
 
 export const Modal: React.FC<ModalProps> = ({ 
@@ -15,7 +16,8 @@ export const Modal: React.FC<ModalProps> = ({
   onClose, 
   children, 
   dismissible = true,
-  title
+  title,
+  maxWidth
 }) => {
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -41,7 +43,7 @@ export const Modal: React.FC<ModalProps> = ({
       <div 
         className="modal-content" 
         onClick={e => e.stopPropagation()}
-        style={{ padding: 0, overflow: 'hidden' }}
+        style={{ padding: 0, overflow: 'hidden', maxWidth: maxWidth || '480px' }}
       >
         {title && (
           <div style={{ 

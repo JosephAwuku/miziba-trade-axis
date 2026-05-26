@@ -7,10 +7,10 @@ This document captures the recommended migration plan for converting TradeAxis i
 ## Scope Sources
 
 Use these files as the project scope reference:
-- `tradeaxis-backend/sprint-plan.md` — product plan, feature milestones, and expected delivery phases.
-- `tradeaxis-backend/infrastructure.md` — architecture, deployment, and platform requirements.
-- `tradeaxis-backend/openapi.yaml` — API contract and endpoint definitions.
+- `tradeaxis-backend/README.md` — what remains under `tradeaxis-backend/` (SQL + OpenAPI reference only).
+- `tradeaxis-backend/openapi.yaml` — historical REST contract (Express-era); cross-check when adding `app/api` routes.
 - `tradeaxis-backend/schema.sql` — PostgreSQL database model.
+- `lib/business-logic.ts`, `lib/rbac.ts` — live TypeScript business rules and permissions.
 
 ## Recommended Stack
 
@@ -25,10 +25,8 @@ Use these files as the project scope reference:
 
 ### Phase 0 — Confirm Scope
 
-1. Review `tradeaxis-backend/sprint-plan.md`.
-2. Review `tradeaxis-backend/infrastructure.md`.
-3. Review `tradeaxis-backend/openapi.yaml`.
-4. Identify MVP flows:
+1. Review `tradeaxis-backend/openapi.yaml` (reference) and `TRADEAXIS_SYSTEM_OVERVIEW.md`.
+2. Confirm MVP flows:
    - auth
    - trade submission and pipeline
    - validation
@@ -64,9 +62,9 @@ Use these files as the project scope reference:
 
 ### Phase 4 — Migrate API endpoints
 
-1. Convert core route logic from `tradeaxis-backend/src/routes` into Next.js API routes.
-2. Reuse business rules from `tradeaxis-backend/core/business-logic.js` and `core/rbac.js`.
-3. Implement API endpoints according to `openapi.yaml`.
+1. Add or extend route handlers under `app/api/` as needed (the legacy Express server under `tradeaxis-backend/src` was removed).
+2. Keep `lib/business-logic.ts` and `lib/rbac.ts` as the source of truth for rules.
+3. Use `openapi.yaml` only as a **reference** when naming endpoints or payloads.
 4. Keep API route handlers serverless-friendly.
 
 ### Phase 5 — Migrate frontend to real API

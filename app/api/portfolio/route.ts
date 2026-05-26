@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, getAuthenticatedUser } from '@/lib/supabase';
 import { User } from '@/lib/types';
+import { isDeployedTradeStage } from '@/lib/portfolio-metrics';
 
 // GET /api/portfolio — Get aggregated metrics for dashboard
 export async function GET(request: NextRequest) {
@@ -41,7 +42,8 @@ export async function GET(request: NextRequest) {
 
     // Accumulators
     let total_contract_value_usd = 0;
-    let total_facility_usd = 0;
+    let finance_facility_pipeline_usd = 0;
+    let capital_deployed_usd = 0;
     let total_volume_mt = 0;
     let total_risk_score = 0;
     let risk_score_count = 0;
@@ -53,7 +55,12 @@ export async function GET(request: NextRequest) {
     trades?.forEach((t: any) => {
       const trade = t as any;
       total_contract_value_usd += trade.contract_value_usd || 0;
-      total_facility_usd += trade.finance_facility_usd || 0;
+      const facility = trade.finance_facility_usd || 0;
+      if (isDeployedTradeStage(trade.stage)) {
+        capital_deployed_usd += facility;
+      } else {
+        finance_facility_pipeline_usd += facility;
+      }
       total_volume_mt += trade.volume_mt || 0;
       
       if (trade.risk_score) {
@@ -72,7 +79,10 @@ export async function GET(request: NextRequest) {
     const metrics = {
       total_deals: trades?.length || 0,
       total_contract_value_usd,
-      total_facility_usd,
+      finance_facility_pipeline_usd,
+      capital_deployed_usd,
+      /** @deprecated use finance_facility_pipeline_usd + capital_deployed_usd */
+      total_facility_usd: finance_facility_pipeline_usd + capital_deployed_usd,
       avg_risk_score: risk_score_count > 0 ? total_risk_score / risk_score_count : 0,
       default_rate_pct: 0, // In reality, calculate from SETTLED/CLOSED trades with discrepancies
       avg_trade_cycle_days: 45, // Mock for now

@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
     
     const auth = await getAuthenticatedUser(token);
-    if (!auth || !['deal_officer', 'ceo', 'cfo', 'ops_admin'].includes(auth.profile.role as string)) {
+    if (!auth || !['deal_officer', 'ceo', 'cfo'].includes(auth.profile.role as string)) {
       return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
     }
 

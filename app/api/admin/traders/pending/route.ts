@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, getAuthenticatedUser } from '@/lib/supabase';
+import { isKycApproverRole } from '@/lib/kyc-approvers';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,8 +10,8 @@ export async function GET(request: NextRequest) {
     const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
     
     const auth = await getAuthenticatedUser(token);
-    if (!auth || !['ceo', 'ops_admin'].includes(auth.profile.role)) {
-      return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 403 });
+    if (!auth || !isKycApproverRole(auth.profile.role)) {
+      return NextResponse.json({ error: 'UNAUTHORIZED', message: 'You are not allowed to view the verification queue.' }, { status: 403 });
     }
 
     const admin = supabaseAdmin;
@@ -21,12 +22,13 @@ export async function GET(request: NextRequest) {
       .from('organisations')
       .select(`
         *,
-        trader_profiles (
-          *
-        )
+        trader_profiles (*),
+        organisation_documents (*),
+        users!users_org_id_fkey ( id, email, full_name, role )
       `)
       .eq('type', 'trader')
-      .eq('kyc_status', 'UNDER_REVIEW');
+      .eq('kyc_status', 'UNDER_REVIEW')
+      .order('updated_at', { ascending: false });
 
     if (error) {
       console.error('Pending traders fetch error:', error);

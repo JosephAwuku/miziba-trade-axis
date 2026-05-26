@@ -16,7 +16,7 @@ export const Badge: React.FC<BadgeProps> = ({ children, variant = 'default', cla
 };
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'navy' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'navy' | 'ghost' | 'outline';
   size?: 'sm' | 'md';
 }
 
@@ -58,7 +58,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ value, height = '6px',
   );
 };
 
-export const Card: React.FC<{ 
+export const Card: React.FC<React.HTMLAttributes<HTMLDivElement> & { 
   children: React.ReactNode; 
   className?: string; 
   title?: string; 
@@ -69,10 +69,11 @@ export const Card: React.FC<{
   className = '', 
   title,
   headerAction,
-  style
+  style,
+  ...props
 }) => {
   return (
-    <div className={`card ${className}`} style={style}>
+    <div className={`card ${className}`} style={style} {...props}>
       {title && (
         <div className="card-head">
           <span>{title}</span>
@@ -88,3 +89,4 @@ export * from './CustomDatePicker';
 
 export * from './Modal';
 export * from './ConfirmDialog';
+export * from './CheckIcon';

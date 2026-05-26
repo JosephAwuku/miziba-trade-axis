@@ -6,12 +6,22 @@ import { apiClient } from '@/lib/api';
 import { timeAgo } from '@/lib/utils';
 import { Button } from './ui';
 import { supabase } from '@/lib/supabase/client';
+import { NotificationBellIcon } from '@/components/icons/NotificationBellIcon';
+import { NotificationTypeIcon } from '@/components/notifications/NotificationTypeIcon';
 
 interface NotificationCenterProps {
   onNotify: (msg: string, type?: string) => void;
+  onViewAll?: () => void;
+  onOpenNotification?: (notificationId: string) => void;
+  refreshToken?: number;
 }
 
-const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNotify }) => {
+const NotificationCenter: React.FC<NotificationCenterProps> = ({
+  onNotify,
+  onViewAll,
+  onOpenNotification,
+  refreshToken = 0,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
@@ -39,6 +49,10 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNotify }) => 
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     toastTimeoutRef.current = setTimeout(() => setActiveToast(null), 8000);
   };
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [refreshToken]);
 
   useEffect(() => {
     let isMounted = true;
@@ -101,15 +115,29 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNotify }) => 
   };
 
   const markRead = async (id: string | 'all') => {
+    const now = new Date().toISOString();
     try {
       await apiClient.markNotificationRead(id);
-      if (id === 'all') {
-        setNotifications(notifications.map(n => ({ ...n, read_at: new Date().toISOString() })));
-      } else {
-        setNotifications(notifications.map(n => n.id === id ? { ...n, read_at: new Date().toISOString() } : n));
-      }
+      setNotifications(prev => {
+        if (id === 'all') {
+          return prev.map(n => ({ ...n, read_at: n.read_at || now }));
+        }
+        return prev.map(n => (n.id === id ? { ...n, read_at: n.read_at || now } : n));
+      });
     } catch (err) {
       onNotify('Failed to update notification', 'error');
+    }
+  };
+
+  const handleNotificationClick = (notification: Notification) => {
+    setIsOpen(false);
+    setActiveToast(null);
+    if (onOpenNotification) {
+      onOpenNotification(notification.id);
+      return;
+    }
+    if (!notification.read_at) {
+      void markRead(notification.id);
     }
   };
 
@@ -134,10 +162,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNotify }) => 
           transition: 'all 0.2s'
         }}
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
-          <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
-        </svg>
+        <NotificationBellIcon size={18} strokeWidth={2} />
         
         {unreadCount > 0 && (
           <span style={{
@@ -165,7 +190,15 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNotify }) => 
       {/* Toast Notification */}
       {activeToast && !isOpen && (
         <div 
-          onClick={() => { setIsOpen(true); setActiveToast(null); }}
+          onClick={() => {
+            if (onOpenNotification) {
+              onOpenNotification(activeToast.id);
+              setActiveToast(null);
+              return;
+            }
+            setIsOpen(true);
+            setActiveToast(null);
+          }}
           style={{
             position: 'absolute',
             top: '44px',
@@ -183,7 +216,9 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNotify }) => 
           className="fade-in"
         >
           <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-            <div style={{ fontSize: '18px' }}>🔔</div>
+            <span style={{ display: 'inline-flex', flexShrink: 0, color: 'inherit' }} aria-hidden>
+              <NotificationTypeIcon notification={activeToast} size={18} strokeWidth={2} />
+            </span>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: '12px', fontWeight: 700, marginBottom: '2px' }}>{activeToast.subject}</div>
               <div style={{ fontSize: '11px', opacity: 0.8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -241,15 +276,17 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNotify }) => 
               notifications.map((n) => (
                 <div 
                   key={n.id} 
-                  onClick={() => markRead(n.id)}
+                  onClick={() => handleNotificationClick(n)}
                   style={{
                     padding: '14px 16px',
                     borderBottom: '1px solid #F9FAFB',
+                    borderLeft: n.read_at ? 'none' : '3px solid var(--cr)',
                     cursor: 'pointer',
-                    background: n.read_at ? '#fff' : 'rgba(139, 0, 0, 0.02)',
-                    transition: 'background 0.2s',
+                    background: n.read_at ? '#fff' : 'rgba(139, 0, 0, 0.04)',
+                    transition: 'all 0.2s',
                     display: 'flex',
-                    gap: '12px'
+                    gap: '12px',
+                    position: 'relative'
                   }}
                   className="row-hover"
                 >
@@ -263,20 +300,35 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNotify }) => 
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
-                    fontSize: '18px'
+                    opacity: n.read_at ? 0.6 : 1,
                   }}>
-                    {n.subject.includes('Trade') ? '📦' : n.subject.includes('Finance') ? '💰' : '🔔'}
+                    <NotificationTypeIcon notification={n} size={18} strokeWidth={2} />
                   </div>
-                  <div style={{ minWidth: 0 }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
                       <div style={{ 
                         fontSize: '12px', 
                         fontWeight: n.read_at ? 600 : 800, 
-                        color: '#111827',
-                        lineHeight: 1.4
-                      }}>{n.subject}</div>
+                        color: n.read_at ? '#6B7280' : '#111827',
+                        lineHeight: 1.4,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}>
+                        {!n.read_at && (
+                          <span style={{
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
+                            background: 'var(--cr)',
+                            display: 'inline-block',
+                            flexShrink: 0
+                          }} />
+                        )}
+                        {n.subject}
+                      </div>
                       <div style={{ fontSize: '10px', color: '#9CA3AF', whiteSpace: 'nowrap' }}>
-                        {n.sent_at ? timeAgo(n.sent_at) : 'now'}
+                        {timeAgo(n.sent_at || n.created_at || new Date().toISOString())}
                       </div>
                     </div>
                     <div style={{ 
@@ -288,7 +340,8 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNotify }) => 
                       display: '-webkit-box',
                       WebkitLineClamp: 2,
                       WebkitBoxOrient: 'vertical',
-                      lineHeight: 1.5
+                      lineHeight: 1.5,
+                      opacity: n.read_at ? 0.7 : 1
                     }}>{n.body}</div>
                   </div>
                 </div>
@@ -302,9 +355,21 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNotify }) => 
             textAlign: 'center',
             background: '#F9FAFB'
           }}>
-             <button style={{ background: 'none', border: 'none', color: '#6B7280', fontSize: '11px', fontWeight: 600, cursor: 'default' }}>
-               Powered by TradeAxis Real-time
-             </button>
+            {onViewAll ? (
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  onViewAll();
+                }}
+                style={{ background: 'none', border: 'none', color: 'var(--cr)', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+              >
+                View all notifications
+              </button>
+            ) : (
+              <button style={{ background: 'none', border: 'none', color: '#6B7280', fontSize: '11px', fontWeight: 600, cursor: 'default' }}>
+                Powered by TradeAxis Real-time
+              </button>
+            )}
           </div>
         </div>
       )}

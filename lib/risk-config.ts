@@ -68,9 +68,9 @@ export const RISK_DIMENSIONS: RiskDimension[] = [
 export const getRiskRecommendation = (total: number) => {
   if (total >= 75) return {
     label: 'Low Risk — Direct Submission',
-    color: '#16A34A',
-    bg: '#F0FDF4',
-    border: '#BBF7D0',
+    color: '#8B0000',
+    bg: '#FFF5F5',
+    border: '#FECACA',
     desc: 'Deal Officer may generate Finance Data Package and submit directly. Standard 5-day review window.'
   };
   if (total >= 55) return {

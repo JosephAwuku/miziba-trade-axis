@@ -2,13 +2,21 @@
 
 import React, { useState, useEffect } from 'react';
 import { Trade, RiskAssessment, ValidationChecklist } from '@/lib/types';
-import { ST as stageConfig, CMD as commodityConfig } from '@/lib/data';
+import { ST as stageConfig, CMD as commodityConfig, commodityLabel } from '@/lib/data';
 import { usd, mt } from '@/lib/utils';
-import { Badge, Button, Card, ProgressBar, CustomSelect } from '../ui';
+import { Badge, Button, Card, ProgressBar, CheckIcon } from '../ui';
 import Settlement from './Settlement';
 import RiskAssessmentTool from '../RiskAssessmentTool';
 import FDPPreview from '../FDPPreview';
 import { apiClient } from '@/lib/api';
+import { isApiError } from '@/lib/api-errors';
+import { nextStage } from '@/lib/business-logic';
+import DealOfficerFlow from '../workflow/DealOfficerFlow';
+import { WorkflowContext } from '../workflow/workflow-messages';
+import FpDecisionPanel from '../workflow/FpDecisionPanel';
+import CeoDecisionPanel from '../workflow/CeoDecisionPanel';
+import DeliveryConfirmPanel from '../workflow/DeliveryConfirmPanel';
+import ClosureChecklistPanel from '../workflow/ClosureChecklistPanel';
 
 interface DealDetailProps {
   dealId: string;
@@ -17,6 +25,7 @@ interface DealDetailProps {
   role: string;
   onUpdateTrade: (id: string, updates: Partial<Trade>) => void;
   onNotify: (msg: string, type?: string) => void;
+  onRefresh?: () => void;
 }
 
 const DealDetail: React.FC<DealDetailProps> = ({ 
@@ -25,16 +34,64 @@ const DealDetail: React.FC<DealDetailProps> = ({
   onBack, 
   role,
   onUpdateTrade,
-  onNotify
+  onNotify,
+  onRefresh,
 }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
   const [riskAssessment, setRiskAssessment] = useState<RiskAssessment | null>(null);
   const [validationChecklist, setValidationChecklist] = useState<ValidationChecklist | null>(null);
   const [documents, setDocuments] = useState<any[]>([]);
   const [timeline, setTimeline] = useState<any[]>([]);
+  const [workflowCtx, setWorkflowCtx] = useState<WorkflowContext>({});
 
   const d = trades.find(t => t.id === dealId);
+
+  const refreshWorkflowContext = async () => {
+    if (!d) return;
+    const ctx: WorkflowContext = {
+      riskScore: d.risk ?? undefined,
+      capitalDeployedPct: d.dep,
+    };
+    try {
+      if (d.stage === 'VALIDATED' || d.stage === 'FINANCE_REVIEW') {
+        const ceo = await apiClient.getCeoEscalation(dealId);
+        ctx.ceoDecision = ceo.escalation?.decision ?? null;
+      }
+      if (d.stage === 'FINANCE_REVIEW' || d.stage === 'FUNDED') {
+        const fp = await apiClient.getFpDecisions(dealId);
+        ctx.fpApproved = fp.decisions?.[0]?.decision === 'approve';
+      }
+      if (d.stage === 'FUNDED') {
+        const dep = await apiClient.getDeploymentStatus(dealId);
+        ctx.capitalDeployedPct = dep.capital_deployed_pct;
+      }
+      if (d.stage === 'PROCURING' || d.stage === 'DELIVERED') {
+        const del = await apiClient.getDeliveryStatus(dealId);
+        ctx.deliveryConfirmed = del.can_advance_to_delivered;
+      }
+      if (d.stage === 'DELIVERED' || d.stage === 'SETTLED') {
+        const settlement = await apiClient.getSettlementData(dealId);
+        ctx.buyerPaid = (settlement.progress?.percentage ?? 0) >= 100;
+        ctx.waterfallComplete =
+          (settlement as any).signatures?.length >= 2 ||
+          settlement.progress?.status === 'finalized';
+      }
+      if (d.stage === 'SETTLED' || d.stage === 'CLOSED') {
+        const closure = await apiClient.getClosureChecklist(dealId);
+        ctx.closureComplete = closure.can_close;
+      }
+    } catch {
+      // Non-fatal: banner falls back to stage heuristics
+    }
+    setWorkflowCtx(ctx);
+  };
+
+  useEffect(() => {
+    refreshWorkflowContext();
+    setLastError(null);
+  }, [dealId, d?.stage, d?.risk, d?.dep]);
   
   useEffect(() => {
     if (activeTab === 'risk') {
@@ -98,121 +155,189 @@ const DealDetail: React.FC<DealDetailProps> = ({
   
   if (!d) return null;
 
+  const handleWorkflowRefresh = () => {
+    onRefresh?.();
+    refreshWorkflowContext();
+    if (activeTab === 'timeline') fetchTimeline();
+  };
+
   const handleAdvanceStage = async (newStage: string) => {
     try {
       setLoading(true);
-      const res = await apiClient.updateTrade(dealId, { stage: newStage });
+      setLastError(null);
+      const res = await apiClient.advanceTradeStage(dealId, newStage);
       if (res.trade) {
-        onNotify(`Trade advanced to ${newStage}`);
+        onNotify(`Trade advanced to ${newStage.replace(/_/g, ' ')}`);
         onUpdateTrade(dealId, { stage: res.trade.stage as Trade['stage'] });
-        // Refresh timeline if on that tab
-        if (activeTab === 'timeline') fetchTimeline();
+        handleWorkflowRefresh();
       }
-    } catch (err: any) {
-      const msg = err.response?.data?.message || 'Failed to advance stage';
+    } catch (err: unknown) {
+      const msg = isApiError(err) ? err.message : 'Failed to advance stage';
+      setLastError(msg);
       onNotify(msg, 'error');
     } finally {
       setLoading(false);
     }
   };
 
+  const tryAdvanceToNextStage = async () => {
+    if (!d) return;
+    const ns = nextStage(d.stage);
+    if (ns) await handleAdvanceStage(ns);
+  };
+
   if (!d) return null;
 
   const cm = commodityConfig[d.cmd];
   const tr = d.risk || 0;
-  const rc = tr >= 75 ? '#16A34A' : tr >= 55 ? '#D97706' : '#DC2626';
+  const rc = tr >= 75 ? '#8B0000' : tr >= 55 ? '#D97706' : '#DC2626';
   
-  const canEdit = role === 'deal_officer' || role === 'ceo' || role === 'ops_admin';
+  const canEdit = role === 'deal_officer' || role === 'ceo';
+  const isObserver = role === 'ops_admin';
   const isCFO = role === 'cfo';
   
   const tabs = [
     { id: 'overview', l: 'Overview' },
     { id: 'validation', l: 'Checklist' },
     { id: 'risk', l: 'Risk Score' },
-    { id: 'documents', l: 'Documents' },
+    { id: 'documents', l: 'Trade documents' },
     { id: 'timeline', l: 'Timeline' },
   ];
 
-  if (canEdit || isCFO || role === 'finance_partner') {
+  if (canEdit || isCFO || role === 'finance_partner' || isObserver) {
     tabs.push({ id: 'settlement', l: 'Settlement' });
   }
 
-  if (canEdit || role === 'finance_partner') {
+  if (canEdit || role === 'finance_partner' || isObserver) {
     tabs.push({ id: 'deployment', l: 'Deployment' });
     tabs.push({ id: 'fdp', l: 'Finance Package' });
+  }
+
+  if ((canEdit || role === 'ceo' || isObserver) && (d.stage === 'SETTLED' || d.stage === 'CLOSED')) {
+    tabs.push({ id: 'closure', l: 'Closure' });
   }
 
   const handleUpdateDeployment = async (pct: number) => {
     try {
       setLoading(true);
-      await apiClient.updateTrade(dealId, { capital_deployed_pct: pct });
-      onNotify('Deployment progress updated');
+      const res = await apiClient.updateDeployment(dealId, pct);
+      onNotify(res.message);
       onUpdateTrade(dealId, { dep: pct });
+      setWorkflowCtx((prev) => ({ ...prev, capitalDeployedPct: pct }));
     } catch (err) {
-      onNotify('Failed to update deployment', 'error');
+      onNotify(isApiError(err) ? err.message : 'Failed to update deployment', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleToggleValidation = async (section: string, itemId: string, currentStatus: boolean) => {
+  const handleUpdateValidation = async (section: string, itemId: string, status?: boolean, notes?: string) => {
     if (!canEdit) return;
     try {
       setLoading(true);
-      await apiClient.updateValidationItem(dealId, section, itemId, !currentStatus);
-      onNotify('Validation item updated');
+      await apiClient.updateValidationItem(dealId, section, itemId, status ?? false, notes);
+      onNotify('Validation updated');
       fetchValidation();
     } catch (err) {
-      onNotify('Failed to update validation item', 'error');
+      onNotify('Failed to update validation', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   const renderActionCenter = () => {
-    if (!canEdit && !isCFO) return null;
+    if (!canEdit && !isCFO && role !== 'finance_partner' && role !== 'ceo') return null;
 
-    // Logic for what the "Next Step" is based on stage
-    let nextStep = null;
-    if (d.stage === 'VALIDATED') {
-      nextStep = { l: 'Send to Finance Partner', s: 'FINANCE_REVIEW', icon: '📤' };
+    type StepAction =
+      | { kind: 'tab'; tab: string; l: string; icon: string }
+      | { kind: 'stage'; stage: string; l: string; icon: string }
+      | { kind: 'next'; l: string; icon: string };
+
+    let nextStep: StepAction | null = null;
+    let description = '';
+
+    if (d.stage === 'SUBMITTED' && canEdit) {
+      nextStep = { kind: 'stage', stage: 'UNDER_VALIDATION', l: 'Start validation', icon: 'check' };
+      description = 'Move trade to Under Validation and complete the checklist.';
+    } else if (d.stage === 'UNDER_VALIDATION' && canEdit) {
+      nextStep = { kind: 'tab', tab: 'validation', l: 'Open checklist', icon: 'check' };
+      description = 'Complete all validation items (auto-advances when done).';
+    } else if (d.stage === 'VALIDATED' && canEdit) {
+      if (!d.risk || d.risk === 0) {
+        nextStep = { kind: 'tab', tab: 'risk', l: 'Score risk', icon: '📊' };
+        description = 'Complete risk assessment before Finance Review.';
+      } else {
+        nextStep = { kind: 'tab', tab: 'fdp', l: 'Generate FDP', icon: '📄' };
+        description = 'Generate Finance Data Package to send to Finance Partner.';
+      }
+    } else if (d.stage === 'FINANCE_REVIEW') {
+      if (role === 'finance_partner') {
+        nextStep = { kind: 'tab', tab: 'fdp', l: 'Review & decide', icon: '📋' };
+        description = 'Review the FDP and submit approve/decline below.';
+      } else if (canEdit) {
+        nextStep = { kind: 'tab', tab: 'fdp', l: 'View FDP status', icon: '📄' };
+        description = 'Awaiting Finance Partner decision on this facility.';
+      }
     } else if (d.stage === 'FUNDED' && canEdit) {
-      nextStep = { l: 'Confirm Equity & Start Procurement', s: 'PROCURING', icon: '🚜' };
+      if ((workflowCtx.capitalDeployedPct ?? d.dep ?? 0) < 60) {
+        nextStep = { kind: 'tab', tab: 'deployment', l: 'Record deployment', icon: '💵' };
+        description = 'Deploy at least 60% capital before procurement.';
+      } else {
+        nextStep = { kind: 'next', l: 'Start procurement', icon: '🚜' };
+        description = 'Capital threshold met — advance to Procuring.';
+      }
     } else if (d.stage === 'PROCURING' && canEdit) {
-      nextStep = { l: 'Confirm Goods Delivered', s: 'DELIVERED', icon: '🚢' };
-    } else if (d.stage === 'DELIVERED' && (isCFO || role === 'ceo')) {
-      nextStep = { l: 'Go to Settlement Tab', s: 'TAB_SETTLEMENT', icon: '💰' };
+      if (!workflowCtx.deliveryConfirmed) {
+        nextStep = { kind: 'tab', tab: 'deployment', l: 'Confirm delivery', icon: '📦' };
+        description = 'Record delivered weight in Deployment tab first.';
+      } else {
+        nextStep = { kind: 'next', l: 'Mark delivered', icon: '🚢' };
+        description = 'Delivery confirmed — advance to Delivered stage.';
+      }
+    } else if (d.stage === 'DELIVERED' && (isCFO || role === 'ceo' || canEdit)) {
+      nextStep = { kind: 'tab', tab: 'settlement', l: 'Settlement', icon: '💰' };
+      description = 'Record buyer payment and complete dual CFO waterfall signatures.';
+    } else if (d.stage === 'SETTLED' && canEdit) {
+      nextStep = { kind: 'tab', tab: 'closure', l: 'Close trade', icon: '🔒' };
+      description = 'Complete closure checklist and lock the record.';
     }
 
     if (!nextStep) return null;
 
+    const runAction = () => {
+      if (nextStep!.kind === 'tab') setActiveTab(nextStep!.tab);
+      else if (nextStep!.kind === 'stage') handleAdvanceStage(nextStep!.stage);
+      else if (nextStep!.kind === 'next') tryAdvanceToNextStage();
+    };
+
     return (
-      <Card style={{ 
-        background: 'linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)', 
-        padding: '16px', 
-        marginBottom: '20px', 
-        border: 'none',
-        boxShadow: '0 4px 20px rgba(124, 58, 237, 0.2)'
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '10px', fontWeight: 700, letterSpacing: '.05em', marginBottom: '4px' }}>
-              STANDALONE ACTION CENTER
+      <Card style={{ padding: '16px', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ color: '#6B7280', fontSize: '10px', fontWeight: 700, letterSpacing: '.05em', marginBottom: '4px' }}>
+              NEXT ACTION
             </div>
-            <div style={{ color: '#fff', fontSize: '14px', fontWeight: 600 }}>
-              Manual Step Required: {nextStep.l}
+            <div style={{ color: '#111827', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>
+              {nextStep.l}
+            </div>
+            <div style={{ color: '#6B7280', fontSize: '11px', lineHeight: '1.4' }}>
+              {description}
             </div>
           </div>
           <Button 
-            variant="secondary" 
-            style={{ background: '#fff', color: '#4338CA', border: 'none', fontWeight: 700 }}
-            onClick={() => {
-              if (nextStep?.s === 'TAB_SETTLEMENT') setActiveTab('settlement');
-              else if (nextStep?.s) handleAdvanceStage(nextStep.s);
-            }}
+            variant="primary"
+            style={{ fontWeight: 700, flexShrink: 0 }}
+            onClick={runAction}
             disabled={loading}
           >
-            {nextStep.icon} {nextStep.l}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+              {nextStep.icon === 'check' ? (
+                <CheckIcon size={16} strokeWidth={3} color="#fff" />
+              ) : (
+                <span aria-hidden>{nextStep.icon}</span>
+              )}
+              {nextStep.l}
+            </span>
           </Button>
         </div>
       </Card>
@@ -222,16 +347,24 @@ const DealDetail: React.FC<DealDetailProps> = ({
   const renderDeployment = () => {
     return (
       <div className="fade-in">
+        <DeliveryConfirmPanel
+          tradeId={dealId}
+          stage={d.stage}
+          expectedVolumeMt={d.vol}
+          canEdit={canEdit}
+          onNotify={onNotify}
+          onSuccess={handleWorkflowRefresh}
+        />
         <div className="g2" style={{ marginBottom: '20px' }}>
           <Card title="PROCUREMENT / SHIPMENT METRICS" style={{ padding: '20px' }}>
              <div style={{ marginBottom: '16px' }}>
                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                  <span style={{ fontSize: '12px', fontWeight: 600 }}>Capital Deployed</span>
-                 <span className="mono" style={{ fontWeight: 700, color: '#2563EB' }}>{d.dep}%</span>
+                 <span className="mono" style={{ fontWeight: 700, color: '#8B0000' }}>{d.dep}%</span>
                </div>
-               <ProgressBar value={d.dep} color="#2563EB" height="12px" />
+               <ProgressBar value={d.dep} color="#8B0000" height="12px" />
              </div>
-             {canEdit && (
+             {canEdit && d.stage === 'FUNDED' && (
                <div style={{ display: 'flex', gap: '10px' }}>
                  {[0, 25, 50, 75, 100].map(p => (
                    <Button key={p} variant="secondary" size="sm" onClick={() => handleUpdateDeployment(p)} style={{ flex: 1 }}>
@@ -259,13 +392,13 @@ const DealDetail: React.FC<DealDetailProps> = ({
               width: '60px', 
               height: '60px', 
               borderRadius: '50%', 
-              border: '4px solid #16A34A', 
+              border: '4px solid #8B0000', 
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'center',
               fontSize: '14px',
               fontWeight: 800,
-              color: '#16A34A'
+              color: '#8B0000'
             }}>98.2%</div>
             <div>
               <div style={{ fontSize: '13px', fontWeight: 700 }}>EUDR Compliant Batches</div>
@@ -279,7 +412,16 @@ const DealDetail: React.FC<DealDetailProps> = ({
 
   const renderOverview = () => {
     const fields = [
-      ['Trade ID', d.id, true], ['Trader', d.tr, false], ['Commodity', `${d.cmd} Grade ${d.gr}`, false],
+      ['Trade ID', d.id, true],
+      ['Trader', d.tr, false],
+      [
+        'Company KYC',
+        d.traderOrgKyc === 'VERIFIED'
+          ? 'Verified (one-time organisation check)'
+          : `${d.traderOrgKyc.replace(/_/g, ' ')} — not the same as trade documents below`,
+        false,
+      ],
+      ['Commodity', `${commodityLabel(d.cmd)} Grade ${d.gr}`, false],
       ['Volume', mt(d.vol), true], ['Buyer', `${d.buyer} (${d.bc})`, false],
       ['Price/MT', `$${d.price.toLocaleString()}/MT`, true], ['Contract Value', usd(d.cv), true],
       ['Procurement Cost', usd(d.pc), true], ['Trader Equity', `${usd(d.eq)} (${Math.round(d.eq / d.pc * 100)}%)`, true],
@@ -292,8 +434,8 @@ const DealDetail: React.FC<DealDetailProps> = ({
       <Card className="fade-in" style={{ overflow: 'hidden' }}>
         {fields.map((f, i) => (
           <div key={i} style={{ display: 'flex', padding: '8px 14px', borderBottom: '1px solid #F3F4F6', background: i % 2 === 0 ? '#fff' : '#FAFBFC', flexWrap: 'wrap', gap: '4px' }}>
-            <span style={{ width: '160px', flexShrink: 0, fontSize: '10px', color: '#6B7280', fontWeight: 600 }}>{f[0] as string}</span>
-            <span className={f[2] ? 'mono' : ''} style={{ fontSize: '12px', flex: 1, minWidth: 0 }}>{f[1] as string}</span>
+            <span style={{ width: '170px', flexShrink: 0, fontSize: '12px', color: '#6B7280', fontWeight: 600 }}>{f[0] as string}</span>
+            <span className={f[2] ? 'mono' : ''} style={{ fontSize: '14px', flex: 1, minWidth: 0, color: '#111827' }}>{f[1] as string}</span>
           </div>
         ))}
       </Card>
@@ -304,7 +446,7 @@ const DealDetail: React.FC<DealDetailProps> = ({
     if (!validationChecklist) return <div style={{ padding: '20px', textAlign: 'center' }}>Loading checklist...</div>;
 
     const sections = [
-      { id: 'kyc', l: 'KYC & Compliance' },
+      { id: 'kyc', l: 'Trade docs & compliance' },
       { id: 'product', l: 'Product Verification' },
       { id: 'business', l: 'Business Viability' },
       { id: 'shipping', l: 'Logistics & Sourcing' },
@@ -319,9 +461,9 @@ const DealDetail: React.FC<DealDetailProps> = ({
           <Card className="metric" style={{ padding: '16px', marginBottom: '12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <span style={{ fontSize: '12px', fontWeight: 600 }}>Validation Progress</span>
-              <span className="mono" style={{ fontWeight: 700, color: ap ? '#16A34A' : '#D97706' }}>{pc}/4</span>
+              <span className="mono" style={{ fontWeight: 700, color: ap ? '#8B0000' : '#D97706' }}>{pc}/4</span>
             </div>
-            <ProgressBar value={pc * 25} color={ap ? '#16A34A' : '#D97706'} height="8px" />
+            <ProgressBar value={pc * 25} color={ap ? '#8B0000' : '#D97706'} height="8px" />
             {ap && (
               <div style={{ marginTop: '14px' }}>
                 <div className="alert alert-success" style={{ marginBottom: '10px' }}>✓ All sections passed. Finance Data Package ready.</div>
@@ -338,17 +480,36 @@ const DealDetail: React.FC<DealDetailProps> = ({
             <div key={s.id} style={{ marginBottom: '14px' }}>
               <div style={{ fontSize: '10px', fontWeight: 700, color: '#4B5563', marginBottom: '8px', letterSpacing: '.05em' }}>{s.l.toUpperCase()}</div>
               {(validationChecklist as any)[s.id].items.map((item: any) => (
-                <div key={item.id} className="chk-item">
-                  <div 
-                    className={`chk-box ${item.status ? 'on' : ''}`} 
-                    onClick={() => handleToggleValidation(s.id, item.id, item.status)}
-                    style={{ cursor: canEdit ? 'pointer' : 'default' }}
-                  >
-                    {item.status && <span style={{ color: '#fff', fontSize: '11px', fontWeight: 700 }}>✓</span>}
+                <div key={item.id} style={{ marginBottom: '12px', padding: '12px', background: '#F9FAFB', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: item.status ? '10px' : '0' }}>
+                    <div 
+                      className={`chk-box ${item.status ? 'on' : ''}`} 
+                      onClick={() => { if (canEdit) handleUpdateValidation(s.id, item.id, !item.status); }}
+                      style={{ cursor: canEdit ? 'pointer' : 'default' }}
+                    >
+                      {item.status && <span style={{ color: '#fff', fontSize: '11px', fontWeight: 700 }}>✓</span>}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '12px', fontWeight: 600 }}>{item.label}</div>
+                    </div>
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '12px', fontWeight: 500 }}>{item.label}</div>
-                  </div>
+                  {item.status && (
+                    <div className="fade-in" style={{ marginTop: '8px' }}>
+                      <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#9CA3AF', marginBottom: '4px', textTransform: 'uppercase' }}>Validation Notes / Justification</label>
+                      <textarea 
+                        placeholder="Add specific context for this validation..."
+                        style={{ width: '100%', height: '60px', padding: '8px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '11px' }}
+                        defaultValue={item.notes || ''}
+                        onBlur={(e) => {
+                          if (e.target.value !== (item.notes || '')) {
+                            handleUpdateValidation(s.id, item.id, item.status, e.target.value);
+                          }
+                        }}
+                        readOnly={!canEdit}
+                        disabled={!canEdit}
+                      />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -458,8 +619,35 @@ const DealDetail: React.FC<DealDetailProps> = ({
   const renderDocuments = () => {
     if (loading && !documents.length) return <div className="p20" style={{ textAlign: 'center' }}>Listing trade files...</div>;
     return (
-      <Card className="fade-in" title="TRADE DOCUMENTATION REPOSITORY">
+      <Card className="fade-in" title="TRADE DOCUMENTS (THIS DEAL ONLY)">
+        <p style={{ padding: '0 16px 12px', margin: 0, fontSize: '12px', color: '#6B7280', lineHeight: 1.55 }}>
+          Files for this trade (contracts, licences, shipment proofs). Separate from the trader&apos;s one-time company
+          verification in Required Action.
+        </p>
         <div className="p16">
+          <input
+            id="trade-doc-upload-input"
+            type="file"
+            style={{ display: 'none' }}
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              try {
+                setLoading(true);
+                const formData = new FormData();
+                formData.append('file', file);
+                await apiClient.uploadDocument(dealId, formData);
+                onNotify('Supporting document uploaded successfully');
+                await fetchDocuments();
+              } catch (err) {
+                onNotify('Failed to upload supporting document', 'error');
+              } finally {
+                setLoading(false);
+                e.currentTarget.value = '';
+              }
+            }}
+            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+          />
           {!documents.length && <div style={{ textAlign: 'center', padding: '40px', color: '#9CA3AF', fontSize: '12px' }}>No documents uploaded yet.</div>}
           {documents.map((doc, idx) => (
             <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: idx === documents.length -1 ? 0 : '1px solid #F3F4F6' }}>
@@ -476,7 +664,14 @@ const DealDetail: React.FC<DealDetailProps> = ({
               </div>
             </div>
           ))}
-          <Button variant="secondary" style={{ marginTop: '16px', width: '100%' }}>+ Upload Supporting Document</Button>
+          <Button
+            variant="secondary"
+            style={{ marginTop: '16px', width: '100%' }}
+            onClick={() => document.getElementById('trade-doc-upload-input')?.click()}
+            disabled={loading}
+          >
+            + Upload Supporting Document
+          </Button>
         </div>
       </Card>
     );
@@ -526,29 +721,53 @@ const DealDetail: React.FC<DealDetailProps> = ({
 
   return (
     <div className="fade-in">
+      {isObserver && (
+        <div style={{
+          marginBottom: '16px',
+          padding: '12px 16px',
+          borderRadius: '8px',
+          background: '#F8FAFC',
+          border: '1px solid #E2E8F0',
+          fontSize: '12px',
+          color: '#475569',
+        }}>
+          <span style={{ fontWeight: 700, color: 'var(--text)' }}>Read-only access.</span>{' '}
+          Operations Admin can view all trade activity but cannot change status or take workflow actions.
+        </div>
+      )}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
-        <Button variant="secondary" size="sm" onClick={onBack}>← Back</Button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span className="mono" style={{ fontSize: '16px', fontWeight: 700, color: '#8B0000' }}>{d.id}</span>
+            <p style={{ margin: 0, fontSize: '13.5px', color: '#6B7280', fontWeight: 500 }}>
+              {d.id} · {commodityLabel(d.cmd)} Grade {d.gr} · {d.vol} MT · {d.buyer}
+            </p>
             <Badge variant="info">{stageConfig[d.stage]?.l || d.stage}</Badge>
-            <Badge variant={d.kyc === 'VERIFIED' ? 'success' : 'warning'}>{d.kyc}</Badge>
-          </div>
-          <div style={{ fontSize: '11px', color: '#6B7280', marginTop: '3px' }}>
-            {d.tr} · {d.buyer} ({d.bc}) · <Badge variant="default" style={{ background: `${cm?.c || '#000'}15`, color: cm?.c || '#000' }}>{cm?.i} {d.cmd} Grade {d.gr}</Badge>
+            <Badge variant={d.traderOrgKyc === 'VERIFIED' ? 'success' : 'warning'}>
+              Company KYC: {d.traderOrgKyc === 'VERIFIED' ? 'Verified' : d.traderOrgKyc.replace(/_/g, ' ')}
+            </Badge>
           </div>
         </div>
-        {role === 'ops_admin' && (
-          <div style={{ width: '160px' }}>
-            <CustomSelect 
-              compact
-              value={d.stage}
-              onChange={(e) => handleAdvanceStage(e.target.value)}
-              options={Object.entries(stageConfig).map(([k, cfg]) => ({ label: cfg.l, value: k }))}
-            />
-          </div>
-        )}
       </div>
+
+      {(canEdit || isCFO || role === 'finance_partner') && (
+        <DealOfficerFlow
+          trade={d}
+          activeTab={activeTab}
+          workflowContext={workflowCtx}
+          lastError={lastError}
+          availableTabIds={tabs.map((t) => t.id)}
+          onStepClick={setActiveTab}
+        />
+      )}
+
+      <CeoDecisionPanel
+        tradeId={dealId}
+        stage={d.stage}
+        riskScore={d.risk || 0}
+        role={role}
+        onNotify={onNotify}
+        onSuccess={handleWorkflowRefresh}
+      />
 
       {renderActionCenter()}
 
@@ -563,7 +782,7 @@ const DealDetail: React.FC<DealDetailProps> = ({
         </Card>
         <Card className="metric">
           <div className="metric-label">TRADER EQUITY</div>
-          <div className="metric-val" style={{ fontSize: '16px', color: '#2563EB' }}>{usd(d.eq)}</div>
+          <div className="metric-val" style={{ fontSize: '16px', color: '#8B0000' }}>{usd(d.eq)}</div>
         </Card>
         <Card className="metric">
           <div className="metric-label">RISK SCORE</div>
@@ -594,13 +813,41 @@ const DealDetail: React.FC<DealDetailProps> = ({
         <Settlement 
           tradeId={dealId} 
           onNotify={onNotify} 
-          role={role} 
+          role={role}
+          onSettlementChange={handleWorkflowRefresh}
         />
       )}
       {activeTab === 'fdp' && (
-        <FDPPreview 
-          tradeId={dealId} 
+        <>
+          {role === 'finance_partner' && (
+            <FpDecisionPanel
+              tradeId={dealId}
+              stage={d.stage}
+              onNotify={onNotify}
+              onSuccess={() => {
+                handleWorkflowRefresh();
+                onUpdateTrade(dealId, { stage: 'FUNDED' });
+              }}
+            />
+          )}
+          <FDPPreview 
+            tradeId={dealId} 
+            onNotify={onNotify}
+            onGenerated={handleWorkflowRefresh}
+            readOnly={isObserver}
+          />
+        </>
+      )}
+      {activeTab === 'closure' && (
+        <ClosureChecklistPanel
+          tradeId={dealId}
+          stage={d.stage}
+          canEdit={canEdit || role === 'ceo'}
           onNotify={onNotify}
+          onSuccess={() => {
+            handleWorkflowRefresh();
+            onUpdateTrade(dealId, { stage: 'CLOSED' });
+          }}
         />
       )}
     </div>

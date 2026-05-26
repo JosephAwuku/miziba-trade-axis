@@ -31,7 +31,7 @@ const UserDirectory: React.FC<{ onNotify: (m: string, t?: string) => void }> = (
     const roles: any = {
       ceo: { label: 'CEO', bg: '#FEE2E2', color: '#B91C1C' },
       cfo: { label: 'CFO', bg: '#FEF3C7', color: '#92400E' },
-      deal_officer: { label: 'Officer', bg: '#DBEAFE', color: '#1E40AF' },
+      deal_officer: { label: 'Officer', bg: '#FFF5F5', color: '#8B0000' },
       trader: { label: 'Trader', bg: '#D1FAE5', color: '#065F46' },
       finance_partner: { label: 'Partner', bg: '#EDE9FE', color: '#5B21B6' },
       ops_admin: { label: 'Admin', bg: '#F3F4FB', color: '#1F2937' }

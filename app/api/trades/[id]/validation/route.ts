@@ -2,7 +2,8 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, getAuthenticatedUser } from '@/lib/supabase';
 import { ValidationChecklist, User } from '@/lib/types';
-import { notifyTradeParticipants, notifyInternalRoles } from '@/lib/notifications';
+import { notifyTradeParticipants, notifyCeoAction } from '@/lib/notifications';
+import { checkStageTransitionGuards, validateStageTransition } from '@/lib/business-logic';
 
 // GET /api/trades/[id]/validation — Get validation checklist
 export async function GET(
@@ -38,26 +39,26 @@ export async function GET(
       business: {
         completed: val.trader_qualified && val.margin_viable,
         items: [
-          { id: 'trader_qualified', label: 'Trader KYC & Track Record', status: val.trader_qualified },
-          { id: 'margin_viable', label: 'Margin & Risk Assessment', status: val.margin_viable },
+          { id: 'trader_qualified', label: 'Trader KYC & Track Record', status: val.trader_qualified, notes: val.trader_notes || '' },
+          { id: 'margin_viable', label: 'Margin & Risk Assessment', status: val.margin_viable, notes: val.margin_notes || '' },
         ],
       },
       product: {
         completed: val.price_reasonable,
         items: [
-          { id: 'price_reasonable', label: 'Price Reasonableness', status: val.price_reasonable },
+          { id: 'price_reasonable', label: 'Price Reasonableness', status: val.price_reasonable, notes: val.price_notes || '' },
         ],
       },
       shipping: {
         completed: val.sourcing_feasible,
         items: [
-          { id: 'sourcing_feasible', label: 'Sourcing Capacity & Logistics', status: val.sourcing_feasible },
+          { id: 'sourcing_feasible', label: 'Sourcing Capacity & Logistics', status: val.sourcing_feasible, notes: val.sourcing_notes || '' },
         ],
       },
       kyc: {
         completed: val.buyer_verified,
         items: [
-          { id: 'buyer_verified', label: 'Buyer Verification', status: val.buyer_verified },
+          { id: 'buyer_verified', label: 'Buyer Verification', status: val.buyer_verified, notes: val.buyer_notes || '' },
         ],
       },
       risk: {
@@ -104,16 +105,36 @@ export async function PATCH(
     if (!auth) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
 
     const typedUser = auth.profile as any;
-    if (!['deal_officer', 'ceo', 'ops_admin'].includes(typedUser.role)) {
+    if (!['deal_officer', 'ceo'].includes(typedUser.role)) {
       return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
     }
 
-    const { item_id, completed, decision, decline_reason } = await request.json();
+    const admin = supabaseAdmin;
+
+    const { data: tradeRow } = await admin.from('trades').select('stage, trade_ref').eq('id', tradeId).single();
+    if (!tradeRow) {
+      return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
+    }
+    if (!['SUBMITTED', 'UNDER_VALIDATION'].includes(tradeRow.stage as string)) {
+      return NextResponse.json(
+        {
+          error: 'INVALID_STAGE',
+          message: 'Validation checklist can only be edited while the trade is SUBMITTED or UNDER_VALIDATION.',
+        },
+        { status: 400 }
+      );
+    }
+
+    const { item_id, completed, notes, decision, decline_reason } = await request.json();
 
     const update: any = {};
     if (item_id) {
       if (['buyer_verified', 'price_reasonable', 'sourcing_feasible', 'trader_qualified', 'margin_viable'].includes(item_id)) {
-        update[item_id] = completed;
+        if (completed !== undefined) update[item_id] = completed;
+        if (notes !== undefined) {
+          const notesKey = item_id.replace('_verified', '_notes').replace('_reasonable', '_notes').replace('_feasible', '_notes').replace('_qualified', '_notes').replace('_viable', '_notes');
+          update[notesKey] = notes;
+        }
       } else {
         return NextResponse.json({ error: 'INVALID_ITEM' }, { status: 400 });
       }
@@ -132,7 +153,10 @@ export async function PATCH(
       }
     }
 
-    const admin = supabaseAdmin;
+    if (!item_id && !decision) {
+      return NextResponse.json({ error: 'INVALID_PAYLOAD' }, { status: 400 });
+    }
+
     const { data: updated, error } = await (admin
       .from('trade_validations') as any)
       .update({
@@ -146,6 +170,61 @@ export async function PATCH(
     if (error) {
       console.error('Validation update error:', error);
       return NextResponse.json({ error: 'DATABASE_ERROR' }, { status: 500 });
+    }
+
+    // Staff picking up validation: SUBMITTED → UNDER_VALIDATION
+    let { data: trade } = await admin
+      .from('trades')
+      .select('stage, trade_ref, id, risk_score')
+      .eq('id', tradeId)
+      .single();
+
+    if (trade?.stage === 'SUBMITTED') {
+      await admin
+        .from('trades')
+        .update({ stage: 'UNDER_VALIDATION', updated_at: new Date().toISOString() })
+        .eq('id', tradeId)
+        .eq('stage', 'SUBMITTED');
+      const { data: refreshed } = await admin
+        .from('trades')
+        .select('stage, trade_ref, id, risk_score')
+        .eq('id', tradeId)
+        .single();
+      trade = refreshed;
+    }
+
+    const allComplete =
+      updated.buyer_verified &&
+      updated.price_reasonable &&
+      updated.sourcing_feasible &&
+      updated.trader_qualified &&
+      updated.margin_viable;
+
+    if (allComplete && trade && trade.stage === 'UNDER_VALIDATION') {
+      const guards = await checkStageTransitionGuards(admin, tradeId, 'VALIDATED');
+      const transition = validateStageTransition('UNDER_VALIDATION', 'VALIDATED', guards);
+      if (!transition.allowed) {
+        return NextResponse.json(
+          { error: 'INVALID_TRANSITION', message: transition.reason, guards },
+          { status: 400 }
+        );
+      }
+
+      await admin
+        .from('trades')
+        .update({
+          stage: 'VALIDATED',
+          validated_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', tradeId);
+
+      await notifyTradeParticipants(admin, trade, {
+        subject: 'Trade Validation Complete',
+        body: `Trade ${trade.trade_ref} has completed all validation checks and is now in VALIDATED stage. Next: Risk Scoring.`,
+        type: 'VALIDATION_COMPLETE',
+        excludeUserId: typedUser.id,
+      });
     }
 
     // Notify on decision
@@ -162,7 +241,7 @@ export async function PATCH(
             excludeUserId: typedUser.id
           });
           
-          await notifyInternalRoles(admin, ['ceo'], {
+          await notifyCeoAction(admin, {
             subject: 'Action Required: CEO Review',
             body: `Trade ${trade.trade_ref} is validated. Risk Score: ${trade.risk_score || 'N/A'}.`,
             type: 'CEO_REVIEW_REQUIRED',

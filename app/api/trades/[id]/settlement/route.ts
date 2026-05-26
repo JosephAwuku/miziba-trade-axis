@@ -2,9 +2,9 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, getAuthenticatedUser } from '@/lib/supabase';
 import { User, WaterfallInstruction } from '@/lib/types';
-import { calculateWaterfall } from '@/lib/business-logic';
+import { calculateWaterfall, checkStageTransitionGuards, validateStageTransition } from '@/lib/business-logic';
 import { auditLog, hasPermission, checkOwnership } from '@/lib/rbac';
-import { notifyTradeParticipants, notifyInternalRoles } from '@/lib/notifications';
+import { notifyTradeParticipants, notifySettlementRoles } from '@/lib/notifications';
 
 // GET /api/trades/[id]/settlement — Get waterfall/settlement status
 export async function GET(
@@ -13,7 +13,9 @@ export async function GET(
 ) {
   try {
     const { id: tradeId } = await params;
-    const auth = await getAuthenticatedUser();
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+    const auth = await getAuthenticatedUser(token);
 
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -43,7 +45,8 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const waterfall = (trade as any).waterfall_instructions;
+    const waterfallList = (trade as any).waterfall_instructions || [];
+    const waterfall = Array.isArray(waterfallList) ? waterfallList[0] : waterfallList;
     const fdp = (trade as any).finance_data_packages?.[0];
 
     if (!waterfall) {
@@ -54,9 +57,22 @@ export async function GET(
       });
     }
 
+    const signatureUsers = [waterfall.cfo_1_id, waterfall.cfo_2_id].filter(Boolean);
+    let userMap: Record<string, { full_name: string; role: string }> = {};
+    if (signatureUsers.length) {
+      const { data: users } = await admin
+        .from('users')
+        .select('id, full_name, role')
+        .in('id', signatureUsers);
+      userMap = (users || []).reduce((acc: Record<string, { full_name: string; role: string }>, user: any) => {
+        acc[user.id] = { full_name: user.full_name, role: user.role };
+        return acc;
+      }, {});
+    }
+
     // Map DB columns to progress object for UI
     const progress = {
-      percentage: waterfall.status === 'COMPLETED' ? 100 : (waterfall.cfo_1_confirmed || waterfall.cfo_2_confirmed ? 50 : 0),
+      percentage: (waterfall.both_confirmed || ['INSTRUCTED', 'CONFIRMED'].includes(waterfall.status)) ? 100 : (waterfall.cfo_1_confirmed || waterfall.cfo_2_confirmed ? 50 : 0),
       status: waterfall.status,
       amount_paid: waterfall.buyer_payment_usd || 0,
       total_amount: trade.contract_value_usd,
@@ -68,8 +84,18 @@ export async function GET(
       settlement: waterfall,
       progress,
       signatures: [
-        waterfall.cfo_1_id && { user_id: waterfall.cfo_1_id, confirmed: waterfall.cfo_1_confirmed, signed_at: waterfall.cfo_1_confirmed_at },
-        waterfall.cfo_2_id && { user_id: waterfall.cfo_2_id, confirmed: waterfall.cfo_2_confirmed, signed_at: waterfall.cfo_2_confirmed_at }
+        waterfall.cfo_1_id && {
+          user_id: waterfall.cfo_1_id,
+          confirmed: waterfall.cfo_1_confirmed,
+          signed_at: waterfall.cfo_1_confirmed_at,
+          users: userMap[waterfall.cfo_1_id] || null
+        },
+        waterfall.cfo_2_id && {
+          user_id: waterfall.cfo_2_id,
+          confirmed: waterfall.cfo_2_confirmed,
+          signed_at: waterfall.cfo_2_confirmed_at,
+          users: userMap[waterfall.cfo_2_id] || null
+        }
       ].filter((s: any) => s.user_id),
       waterfall_instructions: [
         { label: 'Finance Partner Share', amount: waterfall.fp_principal_usd + waterfall.fp_fee_usd, priority: 1, entity: 'FP' },
@@ -91,7 +117,9 @@ export async function POST(
 ) {
   try {
     const { id: tradeId } = await params;
-    const auth = await getAuthenticatedUser();
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+    const auth = await getAuthenticatedUser(token);
 
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -148,7 +176,7 @@ export async function POST(
 
       // Notify CFOs about settlement initiation
       try {
-        await notifyInternalRoles(admin, ['cfo', 'ceo'], {
+        await notifySettlementRoles(admin, ['cfo', 'ceo'], {
           subject: 'Settlement Initiated',
           body: `Settlement for Trade ${tradeData.trade_ref} has been initiated. Awaiting first CFO signature.`,
           type: 'SETTLEMENT_INITIATED',
@@ -191,7 +219,7 @@ export async function POST(
           miziba_fee_usd: result.mizabaFeeUsd,
           trader_margin_usd: result.traderMarginUsd,
           tenor_days: tenorDays,
-          status: 'IN_PROGRESS',
+          status: 'PENDING',
           updated_at: new Date().toISOString()
         })
         .eq('trade_id', tradeId)
@@ -199,6 +227,16 @@ export async function POST(
         .single();
 
       if (wfUpdateError) throw wfUpdateError;
+
+      // Also update trades table for stage guard validation
+      await admin
+        .from('trades')
+        .update({
+          buyer_payment_usd: payment_amount,
+          buyer_payment_date: payment_date,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', tradeId);
 
       await auditLog(admin, {
         userId: typedUser.id,
@@ -211,7 +249,7 @@ export async function POST(
 
       // Notify internal roles about payment
       try {
-        await notifyInternalRoles(admin, ['cfo', 'ceo', 'deal_officer'], {
+        await notifySettlementRoles(admin, ['cfo', 'ceo', 'deal_officer'], {
           subject: 'Buyer Payment Recorded',
           body: `A payment of ${payment_amount} USD has been recorded for Trade ${tradeData.trade_ref}.`,
           type: 'PAYMENT_RECORDED',
@@ -229,7 +267,8 @@ export async function POST(
         return NextResponse.json({ error: 'Only CFOs and CEOs can sign waterfalls' }, { status: 403 });
       }
 
-      const waterfall = tradeData.waterfall_instructions;
+      const waterfallList = tradeData.waterfall_instructions || [];
+      const waterfall = Array.isArray(waterfallList) ? waterfallList[0] : waterfallList;
       if (!waterfall) {
         return NextResponse.json({ error: 'Waterfall not initiated' }, { status: 400 });
       }
@@ -246,7 +285,7 @@ export async function POST(
           cfo_2_id: typedUser.id,
           cfo_2_confirmed: true,
           cfo_2_confirmed_at: new Date().toISOString(),
-          status: 'COMPLETED',
+          status: 'INSTRUCTED',
           instructed_at: new Date().toISOString()
         };
       } else {
@@ -259,7 +298,16 @@ export async function POST(
         .eq('id', waterfall.id);
 
       // Transition trade stage if fully finalized
-      if (updateData.status === 'COMPLETED') {
+      if (updateData.status === 'INSTRUCTED') {
+        const guards = await checkStageTransitionGuards(admin, tradeId, 'SETTLED');
+        const transition = validateStageTransition(tradeData.stage, 'SETTLED', guards);
+        if (!transition.allowed) {
+          return NextResponse.json(
+            { error: 'INVALID_TRANSITION', message: transition.reason, guards },
+            { status: 400 }
+          );
+        }
+
         await (admin
           .from('trades') as any)
           .update({ stage: 'SETTLED', settled_at: new Date().toISOString() })

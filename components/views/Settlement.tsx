@@ -4,14 +4,16 @@ import React, { useState, useEffect } from 'react';
 import { Card, ProgressBar, Badge, Button, CustomDatePicker } from '../ui';
 import { usd } from '@/lib/utils';
 import { apiClient } from '@/lib/api';
+import { isApiError } from '@/lib/api-errors';
 
 interface SettlementProps {
   tradeId: string;
   onNotify: (msg: string, type?: string) => void;
   role: string;
+  onSettlementChange?: () => void;
 }
 
-const Settlement: React.FC<SettlementProps> = ({ tradeId, onNotify, role }) => {
+const Settlement: React.FC<SettlementProps> = ({ tradeId, onNotify, role, onSettlementChange }) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -33,20 +35,25 @@ const Settlement: React.FC<SettlementProps> = ({ tradeId, onNotify, role }) => {
     }
   };
 
-  const handleAction = async (action: string, payload?: any) => {
+  const handleAction = async (action: 'initiate' | 'record_payment' | 'sign', payload?: Record<string, unknown>) => {
     try {
       setLoading(true);
-      await apiClient.updateSettlement(tradeId, { action, ...payload });
-      onNotify(`Settlement ${action} successful`);
+      const res = await apiClient.updateSettlement(tradeId, { action, ...payload } as Parameters<typeof apiClient.updateSettlement>[1]);
+      if (res.advanced_to_settled) {
+        onNotify('Settlement signed — trade advanced to SETTLED');
+      } else {
+        onNotify(`Settlement ${action.replace('_', ' ')} recorded`);
+      }
       fetchSettlement();
+      onSettlementChange?.();
     } catch (err) {
-      onNotify(`Failed to ${action} settlement`, 'error');
+      onNotify(isApiError(err) ? err.message : `Failed to ${action} settlement`, 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const canManage = ['cfo', 'ceo', 'ops_admin'].includes(role);
+  const canManage = ['cfo', 'ceo'].includes(role);
 
   if (loading && !data) {
     return <div style={{ padding: '20px', textAlign: 'center' }}>Loading settlement data...</div>;
@@ -78,11 +85,11 @@ const Settlement: React.FC<SettlementProps> = ({ tradeId, onNotify, role }) => {
           <Card title="SETTLEMENT PROGRESS" style={{ padding: '20px', marginBottom: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
               <span style={{ fontSize: '14px', fontWeight: 600 }}>Total Collected</span>
-              <span className="mono" style={{ fontWeight: 700, color: progress.percentage === 100 ? '#16A34A' : '#2563EB' }}>
+              <span className="mono" style={{ fontWeight: 700, color: progress.percentage === 100 ? '#8B0000' : '#8B0000' }}>
                 {usd(progress.amount_paid)} / {usd(progress.total_amount)}
               </span>
             </div>
-            <ProgressBar value={progress.percentage} color={progress.percentage === 100 ? '#16A34A' : '#3B82F6'} height="12px" />
+            <ProgressBar value={progress.percentage} color={progress.percentage === 100 ? '#8B0000' : '#8B0000'} height="12px" />
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '11px', color: '#6B7280' }}>
               <span>{progress.percentage}% Complete</span>
               <span>{usd(progress.remaining)} Remaining</span>
@@ -144,11 +151,11 @@ const Settlement: React.FC<SettlementProps> = ({ tradeId, onNotify, role }) => {
               <div style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', marginBottom: '10px' }}>REQUIRED SIGNATURES (2)</div>
               {data.signatures && data.signatures.length > 0 ? (
                 data.signatures.map((sig: any, i: number) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', padding: '8px', background: '#F0FDF4', borderRadius: '6px', border: '1px solid #BBF7D0' }}>
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', padding: '8px', background: '#FFF5F5', borderRadius: '6px', border: '1px solid #FECACA' }}>
                     <div style={{ fontSize: '16px' }}>✍️</div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#166534' }}>{sig.users?.full_name || 'Authorized Signatory'}</div>
-                      <div style={{ fontSize: '10px', color: '#15803D' }}>{sig.users?.role?.toUpperCase()} · {new Date(sig.signed_at).toLocaleString()}</div>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#8B0000' }}>{sig.users?.full_name || 'Authorized Signatory'}</div>
+                      <div style={{ fontSize: '10px', color: '#8B0000' }}>{sig.users?.role?.toUpperCase()} · {new Date(sig.signed_at).toLocaleString()}</div>
                     </div>
                   </div>
                 ))
@@ -159,7 +166,7 @@ const Settlement: React.FC<SettlementProps> = ({ tradeId, onNotify, role }) => {
               )}
             </div>
 
-            {canManage && ['cfo', 'ceo'].includes(role) && !data.signatures?.some((s: any) => s.user_id === role) && (
+            {canManage && ['cfo', 'ceo'].includes(role) && !data.signatures?.some((s: any) => s.users?.role === role) && (
               <Button 
                 variant="navy" 
                 style={{ width: '100%' }} 
@@ -177,7 +184,7 @@ const Settlement: React.FC<SettlementProps> = ({ tradeId, onNotify, role }) => {
                Initiated at: {new Date(settlement.initiated_at).toLocaleString()}
                <hr style={{ margin: '10px 0', borderColor: '#F3F4F6' }} />
                {progress.percentage === 100 && data.signatures?.length >= 2 ? (
-                 <div style={{ color: '#16A34A', fontWeight: 600 }}>✓ Settlement fully finalized & signed</div>
+                 <div style={{ color: '#8B0000', fontWeight: 600 }}>✓ Settlement fully finalized & signed</div>
                ) : (
                  <div>
                    Status: {progress.status.replace('_', ' ').toUpperCase()} 

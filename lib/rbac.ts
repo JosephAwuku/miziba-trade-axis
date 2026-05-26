@@ -14,10 +14,10 @@ import { Role, User, Trade, Document } from './types';
 
 const PERMISSIONS: Record<string, Role[]> = {
   // ── TRADES ─────────────────────────────────────────────────────────────────
-  'trade.list': ['deal_officer', 'ceo', 'cfo'],
+  'trade.list': ['deal_officer', 'ceo', 'cfo', 'ops_admin'],
   'trade.list.own': ['trader'],
   'trade.list.assigned': ['finance_partner'],
-  'trade.view': ['deal_officer', 'ceo', 'cfo', 'trader', 'finance_partner'],
+  'trade.view': ['deal_officer', 'ceo', 'cfo', 'trader', 'finance_partner', 'ops_admin'],
   'trade.create': ['trader'],
   'trade.advance_stage': ['deal_officer', 'ceo'],
   'trade.decline': ['deal_officer', 'ceo'],
@@ -73,18 +73,18 @@ const PERMISSIONS: Record<string, Role[]> = {
   'document.download': ['deal_officer', 'ceo', 'cfo', 'finance_partner', 'trader'],
 
   // ── PORTFOLIO ──────────────────────────────────────────────────────────────
-  'portfolio.view': ['deal_officer', 'ceo', 'cfo'],
-  'buyer_db.view': ['deal_officer', 'ceo'],
+  'portfolio.view': ['deal_officer', 'ceo', 'cfo', 'ops_admin'],
+  'buyer_db.view': ['deal_officer', 'ceo', 'ops_admin'],
   'fp_crm.view': ['deal_officer', 'ceo'],
-  'risk_history.view': ['deal_officer', 'ceo'],
+  'risk_history.view': ['deal_officer', 'ceo', 'ops_admin'],
 
   // ── BUYERS ─────────────────────────────────────────────────────────────────
   'buyer_db.create': ['deal_officer', 'ceo', 'ops_admin'],
   'buyer_db.update': ['deal_officer', 'ceo', 'ops_admin'],
 
   // ── NOTIFICATIONS ──────────────────────────────────────────────────────────
-  'notification.view': ['deal_officer', 'ceo', 'cfo', 'trader', 'finance_partner'],
-  'notification.read': ['deal_officer', 'ceo', 'cfo', 'trader', 'finance_partner'],
+  'notification.view': ['deal_officer', 'ceo', 'cfo', 'trader', 'finance_partner', 'ops_admin'],
+  'notification.read': ['deal_officer', 'ceo', 'cfo', 'trader', 'finance_partner', 'ops_admin'],
 
   // ── ADMIN ───────────────────────────────────────────────────────────────────
   'org.create': ['ceo', 'ops_admin'],
@@ -95,6 +95,8 @@ const PERMISSIONS: Record<string, Role[]> = {
   'config.view': ['ceo', 'ops_admin'],
   'config.update': ['ops_admin'],
   'fp.onboarding.update': ['ceo', 'ops_admin', 'deal_officer'],
+  'kyc.review': ['ceo', 'ops_admin'],
+  'kyc.approve': ['ceo', 'ops_admin'],
 
   // ── WEBHOOKS ───────────────────────────────────────────────────────────────
   'webhook.receive': ['__system__'],

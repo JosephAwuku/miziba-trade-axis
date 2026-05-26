@@ -2,23 +2,62 @@
 
 import React, { useState, useEffect } from 'react';
 import { Trade, View, RiskAssessment } from '@/lib/types';
-import { ST as stageConfig } from '@/lib/data';
+import { ST as stageConfig, commodityLabel } from '@/lib/data';
 import { usd, mt } from '@/lib/utils';
+import { sumFacilityByDeployment } from '@/lib/portfolio-metrics';
 import { Card, Badge, Button, ProgressBar } from '../ui';
 import { apiClient } from '@/lib/api';
+import { isApiError } from '@/lib/api-errors';
 
 interface FinancePartnerPortalProps {
   trades: Trade[];
   onNotify: (msg: string, type?: string) => void;
   view: View;
   setView: (view: View) => void;
+  onRefresh?: () => void;
 }
 
-const FinancePartnerPortal: React.FC<FinancePartnerPortalProps> = ({ trades, onNotify, view: currentView, setView }) => {
+const FinancePartnerPortal: React.FC<FinancePartnerPortalProps> = ({
+  trades,
+  onNotify,
+  view: currentView,
+  setView,
+  onRefresh,
+}) => {
   const [subView, setSubView] = useState<'inbox' | 'overview' | 'portfolio' | 'onboarding' | 'reports'>('overview');
   const [onboardingStep, setOnboardingStep] = useState(1);
+  const [onboardingDone, setOnboardingDone] = useState(false);
+  const [onboardingLoading, setOnboardingLoading] = useState(true);
+  const [savingStep, setSavingStep] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [decisions, setDecisions] = useState<Record<string, 'approve' | 'decline'>>({});
+  const [decisions, setDecisions] = useState<Record<string, 'approve' | 'decline' | 'info_request'>>({});
+  const [decisionNotes, setDecisionNotes] = useState<Record<string, string>>({});
+  const [activeReviewTradeId, setActiveReviewTradeId] = useState<string | null>(null);
+
+  // Onboarding form state
+  const [reviewerName, setReviewerName] = useState('');
+  const [approverName, setApproverName] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [bankSwift, setBankSwift] = useState('');
+  const [briefingDate, setBriefingDate] = useState<string | null>(null);
+
+  // Load persisted onboarding state from the database on mount
+  useEffect(() => {
+    apiClient.getFpOnboarding()
+      .then((data) => {
+        setOnboardingDone(!!data.onboarding_done);
+        setOnboardingStep(data.onboarding_done ? 6 : (data.onboarding_step ?? 1));
+        setReviewerName(data.reviewer_name ?? '');
+        setApproverName(data.approver_name ?? '');
+        setBankName(data.bank_name ?? '');
+        setBankSwift(data.bank_swift ?? '');
+        setBriefingDate(data.next_interaction ?? null);
+      })
+      .catch(() => {
+        // Non-fatal: fall back to step 1 in the UI
+      })
+      .finally(() => setOnboardingLoading(false));
+  }, []);
 
   // Synchronize subView with external view if needed, but usually FPs use their own internal nav
   // For this implementation, we'll map the sidebar views to our sub-views
@@ -32,22 +71,58 @@ const FinancePartnerPortal: React.FC<FinancePartnerPortalProps> = ({ trades, onN
 
   const forReview = trades.filter(t => t.stage === 'FINANCE_REVIEW');
   const myPortfolio = trades.filter(t => t.fp && t.stage !== 'FINANCE_REVIEW' && t.stage !== 'CLOSED');
+  const canReviewDeals = onboardingDone && !onboardingLoading;
+
+  const renderOnboardingGate = (title: string) => (
+    <Card style={{ padding: '48px 32px', textAlign: 'center' }}>
+      <div style={{ fontSize: '40px', marginBottom: '16px' }}>🔒</div>
+      <h3 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '12px' }}>{title}</h3>
+      <p style={{ fontSize: '14px', color: 'var(--text2)', maxWidth: '480px', margin: '0 auto 24px', lineHeight: 1.6 }}>
+        Complete all five onboarding steps (framework agreement, portal users, escrow bank details, and briefing)
+        before you can approve or decline facility requests.
+      </p>
+      <Button variant="primary" style={{ background: '#8B0000', border: 'none' }} onClick={() => setView('fp_onboarding')}>
+        Continue onboarding →
+      </Button>
+    </Card>
+  );
+
+  useEffect(() => {
+    forReview.forEach((t) => {
+      apiClient
+        .getFpDecisions(t.id)
+        .then((res) => {
+          const d = res.decisions?.[0];
+          if (d?.decision) {
+            setDecisions((prev) => ({ ...prev, [t.id]: d.decision as 'approve' | 'decline' | 'info_request' }));
+          }
+        })
+        .catch(() => {});
+    });
+  }, [forReview.map((t) => t.id).join(',')]);
 
   const handleDecision = async (tradeId: string, action: 'approve' | 'decline') => {
     try {
       setLoading(true);
-      const nextStage = action === 'approve' ? 'FUNDED' : 'CLOSED';
-      await apiClient.updateTrade(tradeId, { stage: nextStage });
-      setDecisions(prev => ({ ...prev, [tradeId]: action }));
-      onNotify(`Deal ${action === 'approve' ? 'Approved' : 'Declined'} successfully`);
+      const notes = decisionNotes[tradeId]?.trim();
+      const res = await apiClient.submitFpDecision(tradeId, {
+        decision: action,
+        notes: notes || undefined,
+      });
+      setDecisions((prev) => ({ ...prev, [tradeId]: action }));
+      onNotify(res.message);
+      onRefresh?.();
     } catch (err) {
-      onNotify(`Failed to record decision`, 'error');
+      onNotify(isApiError(err) ? err.message : 'Failed to record decision', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   const renderInbox = () => {
+    if (!canReviewDeals) {
+      return renderOnboardingGate('Facility decisions locked');
+    }
     if (forReview.length === 0) {
       return (
         <Card style={{ padding: '60px 40px', textAlign: 'center' }}>
@@ -57,21 +132,94 @@ const FinancePartnerPortal: React.FC<FinancePartnerPortalProps> = ({ trades, onN
               <line x1="9" y1="3" x2="9" y2="21" />
             </svg>
           </div>
-          <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text)' }}>No deals awaiting decision</div>
-          <p style={{ marginTop: '10px', fontSize: '13px', color: 'var(--text2)' }}>New facility requests will appear here after internal validation.</p>
+          <div style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text)' }}>No deals awaiting decision</div>
+          <p style={{ marginTop: '10px', fontSize: '15px', color: 'var(--text2)' }}>New facility requests will appear here after internal validation.</p>
         </Card>
       );
     }
 
-    return forReview.map(d => {
+    if (!activeReviewTradeId) {
+      return (
+        <Card style={{ padding: '24px' }}>
+          <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '20px', color: 'var(--text)' }}>
+            Pending Facility Requests
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {forReview.map(d => (
+              <div
+                key={d.id}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '16px 20px',
+                  background: '#fff',
+                  border: '1px solid #E2E8F0',
+                  borderRadius: '12px',
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>
+                    {commodityLabel(d.cmd)} - {d.vol} MT
+                  </div>
+                  <div style={{ fontSize: '13px', color: 'var(--text3)', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    <span>ID: <span className="mono">{d.id.slice(0, 8)}</span></span>
+                    <span>Buyer: {d.buyer}</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <Badge variant="info">{stageConfig[d.stage]?.l || d.stage}</Badge>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    style={{ padding: '8px 20px', fontSize: '13px', fontWeight: 700 }}
+                    onClick={() => setActiveReviewTradeId(d.id)}
+                  >
+                    Review Request →
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      );
+    }
+
+    const selectedTrade = forReview.find(t => t.id === activeReviewTradeId);
+    if (!selectedTrade) return null;
+
+    return (
+      <div className="fade-in">
+        <div style={{ marginBottom: '20px' }}>
+          <button
+            onClick={() => setActiveReviewTradeId(null)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--cr)',
+              fontSize: '13px',
+              fontWeight: 800,
+              padding: '4px 0',
+              letterSpacing: '0.02em'
+            }}
+          >
+            ← BACK TO REQUESTS
+          </button>
+        </div>
+        {(() => {
+      const d = selectedTrade;
       const decision = decisions[d.id];
-      const riskColor = (d.risk || 0) >= 75 ? '#16A34A' : (d.risk || 0) >= 55 ? '#D97706' : '#DC2626';
+      const riskColor = (d.risk || 0) >= 75 ? '#8B0000' : (d.risk || 0) >= 55 ? '#D97706' : '#DC2626';
 
       // Typical waterfall estimates for FP (simplified)
       const fpReturns = Math.round(d.ff * 1.12); // Principal + 12%
 
       return (
-        <Card key={d.id} className="fade-in" style={{ padding: '20px', marginBottom: '16px', borderTop: '4px solid #C9943A' }}>
+        <Card key={d.id} className="fade-in" style={{ padding: '20px', marginBottom: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
@@ -81,10 +229,7 @@ const FinancePartnerPortal: React.FC<FinancePartnerPortalProps> = ({ trades, onN
                   RISK: {d.risk || '??'}/100
                 </Badge>
               </div>
-              <div style={{ fontSize: '12px', color: '#64748B' }}>{d.tr} · {d.cmd} Grade {d.gr}</div>
-            </div>
-            <div style={{ background: '#F1F5F9', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 600 }}>
-              Group {d.gr}
+              <div style={{ fontSize: '14.5px', color: '#64748B' }}>{d.tr} · {commodityLabel(d.cmd)} Grade {d.gr}</div>
             </div>
           </div>
 
@@ -94,60 +239,87 @@ const FinancePartnerPortal: React.FC<FinancePartnerPortalProps> = ({ trades, onN
               ['Volume', mt(d.vol)], ['Buyer', d.buyer],
               ['Country', d.bc], ['Deadline', d.dl]
             ].map((f, i) => (
-              <div key={i} style={{ background: '#F8FAFC', borderRadius: '6px', padding: '8px 10px' }}>
-                <div style={{ fontSize: '9px', color: '#9CA3AF', fontWeight: 600, marginBottom: '2px' }}>{f[0].toUpperCase()}</div>
-                <div style={{ fontSize: '11px', fontWeight: 500 }}>{f[1]}</div>
+              <div key={i} style={{ background: '#F8FAFC', borderRadius: '6px', padding: '10px 12px' }}>
+                <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 700, marginBottom: '3px' }}>{f[0].toUpperCase()}</div>
+                <div style={{ fontSize: '13.5px', fontWeight: 600 }}>{f[1]}</div>
               </div>
             ))}
           </div>
 
-          <Card style={{ background: '#0D1F3C', padding: '14px', marginBottom: '16px' }}>
-            <div style={{ fontSize: '9px', fontWeight: 700, color: '#94A3B8', letterSpacing: '.06em', marginBottom: '10px' }}>WATERFALL SETTLEMENT — TradeVault Enforced</div>
+          <Card
+            style={{
+              padding: '18px',
+              marginBottom: '16px',
+              borderRadius: '14px',
+            }}
+          >
+            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text3)', letterSpacing: '.06em', marginBottom: '14px' }}>
+              WATERFALL SETTLEMENT - TradeVault Enforced
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.05)', padding: '8px', borderRadius: '6px' }}>
-                <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: '#C9943A', color: '#0D1F3C', fontSize: '10px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>1</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: '#F8FAFC', border: '1px solid #E5E7EB', padding: '12px', borderRadius: '10px' }}>
+                <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: 'var(--cr-bg)', color: 'var(--cr)', fontSize: '12px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>1</div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#C9943A' }}>Finance Partner (You)</div>
-                  <div style={{ fontSize: '10px', color: '#94A3B8' }}>Principal + fixed return — paid first</div>
+                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)' }}>Finance Partner (You)</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text3)' }}>Principal + fixed return - paid first</div>
                 </div>
-                <div className="mono" style={{ color: '#C9943A', fontWeight: 700 }}>{usd(fpReturns)}</div>
+                <div className="mono" style={{ color: 'var(--cr)', fontWeight: 800, fontSize: '28px' }}>{usd(fpReturns)}</div>
               </div>
-              <div style={{ opacity: 0.6, display: 'flex', alignItems: 'center', gap: '10px', padding: '8px' }}>
-                <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: '#94A3B8', color: '#0D1F3C', fontSize: '10px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>2</div>
-                <div style={{ fontSize: '11px', color: '#FFF' }}>Miziba & Trader Residuals</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: '#F8FAFC', border: '1px solid #E5E7EB', borderRadius: '10px' }}>
+                <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#E2E8F0', color: '#475569', fontSize: '12px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>2</div>
+                <div style={{ fontSize: '15px', color: 'var(--text2)' }}>Miziba & Trader Residuals</div>
               </div>
             </div>
           </Card>
 
           {!decision ? (
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <Button
-                variant="primary"
-                style={{ flex: 1, background: '#16A34A', border: 'none' }}
-                onClick={() => handleDecision(d.id, 'approve')}
-                disabled={loading}
-              >
-                ✓ Approve Facility — {usd(d.ff)}
-              </Button>
-              <Button
-                variant="secondary"
-                style={{ color: '#DC2626', borderColor: '#FECACA' }}
-                onClick={() => handleDecision(d.id, 'decline')}
-                disabled={loading}
-              >
-                ✕ Decline
-              </Button>
-            </div>
+            <>
+              <textarea
+                value={decisionNotes[d.id] || ''}
+                onChange={(e) => setDecisionNotes((prev) => ({ ...prev, [d.id]: e.target.value }))}
+                placeholder="Notes (optional for approve; recommended for decline)"
+                style={{
+                  width: '100%',
+                  minHeight: '64px',
+                  padding: '10px',
+                  borderRadius: '8px',
+                  border: '1px solid #E5E7EB',
+                  fontSize: '13px',
+                  marginTop: '16px',
+                  marginBottom: '16px',
+                }}
+              />
+              <div style={{ display: 'flex', gap: '14px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <Button
+                  variant="primary"
+                  style={{ minWidth: '280px', background: '#8B0000', border: 'none' }}
+                  onClick={() => handleDecision(d.id, 'approve')}
+                  disabled={loading || !canReviewDeals}
+                >
+                  ✓ Approve Facility — {usd(d.ff)}
+                </Button>
+                <Button
+                  variant="secondary"
+                  style={{ minWidth: '200px', color: '#DC2626', borderColor: '#FECACA' }}
+                  onClick={() => handleDecision(d.id, 'decline')}
+                  disabled={loading || !canReviewDeals}
+                >
+                  ✕ Decline
+                </Button>
+              </div>
+            </>
           ) : (
-            <div className={`alert alert-${decision === 'approve' ? 'success' : 'danger'}`} style={{ marginBottom: 0 }}>
+            <div className={`alert alert-${decision === 'approve' ? 'success' : 'danger'}`} style={{ marginBottom: 0, marginTop: '16px' }}>
               {decision === 'approve'
-                ? '✓ Facility approved. Escrow instruction sent to TradeVault.'
+                ? '✓ Facility approved. Trade advances to FUNDED when all requirements are met.'
                 : '✕ Facility declined. Deal Officer has been notified.'}
             </div>
           )}
         </Card>
       );
-    });
+    })()}
+      </div>
+    );
   };
 
   const renderOverview = () => {
@@ -159,9 +331,8 @@ const FinancePartnerPortal: React.FC<FinancePartnerPortalProps> = ({ trades, onN
         </div>
 
         {/* High Priority Onboarding Banner */}
-        {onboardingStep <= 5 && (
-          <Card style={{ 
-            padding: '28px', 
+        {!onboardingDone && onboardingStep <= 5 && (
+          <Card className="fade-in" style={{ 
             marginBottom: '32px',
             boxShadow: '0 4px 15px rgba(0, 0, 0, 0.06)',
             border: '2px solid transparent',
@@ -169,8 +340,8 @@ const FinancePartnerPortal: React.FC<FinancePartnerPortalProps> = ({ trades, onN
             backgroundOrigin: 'border-box',
             backgroundClip: 'padding-box, border-box'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: '320px' }}>
+            <div className="flex-stack-mobile" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px' }}>
+              <div style={{ flex: 1 }}>
                 <h3 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text)', marginBottom: '12px' }}>
                   Complete your Partner Onboarding
                 </h3>
@@ -197,20 +368,27 @@ const FinancePartnerPortal: React.FC<FinancePartnerPortalProps> = ({ trades, onN
         )}
 
         {/* Metrics Row */}
-        <div className="g3" style={{ marginBottom: '32px' }}>
-          <Card style={{ padding: '24px' }}>
+        <div className="g4" style={{ marginBottom: '32px' }}>
+          <Card>
             <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.05em', marginBottom: '10px' }}>ACTIVE DEALS</div>
             <div style={{ fontSize: '32px', fontWeight: 800, color: 'var(--text)' }}>{myPortfolio.length}</div>
-            <div style={{ fontSize: '12.5px', color: '#16A34A', marginTop: '6px', fontWeight: 600 }}>✓ Performing normally</div>
+            <div style={{ fontSize: '12.5px', color: '#8B0000', marginTop: '6px', fontWeight: 600 }}>✓ Performing normally</div>
           </Card>
-          <Card style={{ padding: '24px' }}>
+          <Card>
+            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.05em', marginBottom: '10px' }}>FINANCE FACILITY (PIPELINE)</div>
+            <div style={{ fontSize: '32px', fontWeight: 800, color: 'var(--text)' }}>
+              {usd(forReview.reduce((a, t) => a + t.ff, 0))}
+            </div>
+            <p style={{ fontSize: '12.5px', color: 'var(--text2)', marginTop: '6px' }}>{forReview.length} pending your approval</p>
+          </Card>
+          <Card>
             <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.05em', marginBottom: '10px' }}>CAPITAL DEPLOYED</div>
             <div style={{ fontSize: '32px', fontWeight: 800, color: 'var(--text)' }}>
-              {usd(myPortfolio.reduce((a, t) => a + t.ff, 0))}
+              {usd(sumFacilityByDeployment(myPortfolio, true))}
             </div>
-            <p style={{ fontSize: '12.5px', color: 'var(--text2)', marginTop: '6px' }}>Across all active cycles</p>
+            <p style={{ fontSize: '12.5px', color: 'var(--text2)', marginTop: '6px' }}>Funded facilities in your portfolio</p>
           </Card>
-          <Card style={{ padding: '24px' }}>
+          <Card>
             <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.05em', marginBottom: '10px' }}>AVG PERFORMANCE</div>
             <div style={{ fontSize: '32px', fontWeight: 800, color: 'var(--cr)' }}>100%</div>
             <div style={{ fontSize: '12.5px', color: 'var(--text2)', marginTop: '6px' }}>Zero defaults to date</div>
@@ -219,14 +397,14 @@ const FinancePartnerPortal: React.FC<FinancePartnerPortalProps> = ({ trades, onN
 
         {/* Recent Activity / Status Shortcut */}
         <div className="g2-responsive" style={{ marginBottom: '24px' }}>
-          <Card style={{ padding: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <Card>
+            <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '12px' }}>
               <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text)' }}>Your Recent Deals</h3>
               <Button variant="secondary" size="md" onClick={() => setView('fp_inbox')}>View Inbox</Button>
             </div>
             
             {myPortfolio.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text2)' }}>
+              <div className="empty-state" style={{ textAlign: 'center', color: 'var(--text2)' }}>
                   <div style={{ marginBottom: '20px', color: 'var(--text3)', display: 'flex', justifyContent: 'center' }}>
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.3">
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -255,7 +433,7 @@ const FinancePartnerPortal: React.FC<FinancePartnerPortalProps> = ({ trades, onN
                   {myPortfolio.slice(0, 3).map(d => (
                       <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', border: '1px solid #F1F5F9', borderRadius: '8px' }}>
                           <div>
-                              <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>{d.tr} · {d.cmd}</div>
+                              <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>{d.tr} · {commodityLabel(d.cmd)}</div>
                               <div style={{ fontSize: '11px', color: 'var(--text3)' }}>{d.buyer} · {usd(d.ff)}</div>
                           </div>
                           <Badge variant="info">{stageConfig[d.stage]?.l || d.stage}</Badge>
@@ -265,7 +443,7 @@ const FinancePartnerPortal: React.FC<FinancePartnerPortalProps> = ({ trades, onN
             )}
           </Card>
 
-          <Card style={{ padding: '24px' }}>
+          <Card>
             <h3 style={{ fontSize: '16.5px', fontWeight: 700, color: 'var(--text)', marginBottom: '20px' }}>Help & Resources</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
               <div style={{ cursor: 'pointer' }}>
@@ -330,12 +508,12 @@ const FinancePartnerPortal: React.FC<FinancePartnerPortalProps> = ({ trades, onN
                   <tr key={t.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
                     <td style={{ padding: '16px', fontSize: '13px', fontWeight: 700, color: 'var(--cr)' }}>{t.id}</td>
                     <td style={{ padding: '16px', fontSize: '13px' }}>
-                      <div style={{ fontWeight: 600 }}>{t.cmd}</div>
+                      <div style={{ fontWeight: 600 }}>{commodityLabel(t.cmd)}</div>
                       <div style={{ fontSize: '11px', color: 'var(--text3)' }}>Grade {t.gr}</div>
                     </td>
                     <td style={{ padding: '16px', fontSize: '13px' }}>{t.buyer}</td>
                     <td style={{ padding: '16px', textAlign: 'right', fontSize: '13px', fontWeight: 600 }}>{usd(t.ff)}</td>
-                    <td style={{ padding: '16px', textAlign: 'right', fontSize: '13px', fontWeight: 600, color: '#16A34A' }}>{usd(t.ff * 0.12)}</td>
+                    <td style={{ padding: '16px', textAlign: 'right', fontSize: '13px', fontWeight: 600, color: '#8B0000' }}>{usd(t.ff * 0.12)}</td>
                     <td style={{ padding: '16px' }}>
                       <Badge variant="info">{stageConfig[t.stage]?.l || t.stage}</Badge>
                     </td>
@@ -349,6 +527,46 @@ const FinancePartnerPortal: React.FC<FinancePartnerPortalProps> = ({ trades, onN
     );
   };
 
+  const handleCompleteStep = async () => {
+    const stepPayload: {
+      step: number;
+      reviewer_name?: string;
+      approver_name?: string;
+      bank_name?: string;
+      bank_swift?: string;
+    } = { step: onboardingStep };
+
+    if (onboardingStep === 3) {
+      if (!reviewerName.trim() || !approverName.trim()) {
+        onNotify('Please enter both the reviewer and approver names.', 'error');
+        return;
+      }
+      stepPayload.reviewer_name = reviewerName.trim();
+      stepPayload.approver_name = approverName.trim();
+    }
+
+    if (onboardingStep === 4) {
+      if (!bankName.trim() || !bankSwift.trim()) {
+        onNotify('Please enter both the bank name and SWIFT code.', 'error');
+        return;
+      }
+      stepPayload.bank_name = bankName.trim();
+      stepPayload.bank_swift = bankSwift.trim();
+    }
+
+    try {
+      setSavingStep(true);
+      const res = await apiClient.updateFpOnboarding(stepPayload);
+      setOnboardingDone(!!res.onboarding_done);
+      setOnboardingStep(res.onboarding_done ? 6 : res.onboarding_step);
+      onNotify(res.onboarding_done ? 'Onboarding complete — you can now review facility requests.' : `Step ${onboardingStep} completed.`);
+    } catch {
+      onNotify('Failed to save progress. Please try again.', 'error');
+    } finally {
+      setSavingStep(false);
+    }
+  };
+
   const renderOnboarding = () => {
     const steps = [
       { n: 1, l: 'Due Diligence on Miziba', desc: "Review Miziba's operations and track record (0% default rate)." },
@@ -357,6 +575,14 @@ const FinancePartnerPortal: React.FC<FinancePartnerPortalProps> = ({ trades, onN
       { n: 4, l: 'Escrow Bank Account Setup', desc: 'Registration of swifts and account details for disbursements.' },
       { n: 5, l: 'First Deal Briefing', desc: 'Orientation with Deal Officer on current bridge deal cycles.' }
     ];
+
+    if (onboardingLoading) {
+      return (
+        <div className="fade-in" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px', color: 'var(--text3)' }}>
+          Loading onboarding status…
+        </div>
+      );
+    }
 
     if (onboardingStep > 5) {
       return (
@@ -378,7 +604,7 @@ const FinancePartnerPortal: React.FC<FinancePartnerPortalProps> = ({ trades, onN
               style={{ marginTop: '24px' }}
               onClick={() => setView('fp_overview')}
             >
-              Go to Dashboard Overview
+              Go to Finance Partner Overview
             </Button>
           </Card>
         </div>
@@ -394,7 +620,7 @@ const FinancePartnerPortal: React.FC<FinancePartnerPortalProps> = ({ trades, onN
           <p style={{ color: '#6B7280', marginTop: '4px' }}>Complete the setup to activate your capital deployment access.</p>
         </div>
 
-        <div className="card" style={{ padding: '40px' }}>
+        <div className="card">
           <div className="tabs" style={{ marginBottom: '32px', borderBottom: '1px solid var(--bdr)', display: 'flex', overflowX: 'auto' }}>
             {steps.map((s) => (
               <button 
@@ -471,24 +697,44 @@ const FinancePartnerPortal: React.FC<FinancePartnerPortalProps> = ({ trades, onN
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 700, color: 'var(--text)' }}>Miziba_MFA_Draft_v2.pdf</div>
-                    <div style={{ fontSize: '12px', color: '#64748B' }}>1.2 MB · Pending Signature</div>
+                    <div style={{ fontSize: '12px', color: '#64748B' }}>Pending Signature · Document being finalised by Miziba legal team</div>
                   </div>
-                  <Button variant="secondary" size="sm">Download</Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled
+                    title="Document not yet available for download"
+                  >
+                    Pending
+                  </Button>
                 </div>
+                <p style={{ marginTop: '12px', fontSize: '12px', color: '#94A3B8' }}>
+                  The document will be available for download and signature once the Miziba legal team finalises it. Proceeding here acknowledges you have been notified of this step.
+                </p>
               </div>
             )}
 
             {onboardingStep === 3 && (
               <div style={{ color: 'var(--text2)', fontSize: '14px', lineHeight: 1.6 }}>
                 <p style={{ marginBottom: '16px' }}>Configure access levels for your team. Every transaction requires dual-approval for security compliance.</p>
-                <div className="g2" style={{ gap: '16px' }}>
+                <div className="g2">
                   <div className="field">
                     <label>Designated Reviewer</label>
-                    <input type="text" placeholder="Full Name" defaultValue="Kwame Mensah" />
+                    <input
+                      type="text"
+                      placeholder="Full Name"
+                      value={reviewerName}
+                      onChange={e => setReviewerName(e.target.value)}
+                    />
                   </div>
                   <div className="field">
                     <label>Designated Approver</label>
-                    <input type="text" placeholder="Full Name" defaultValue="Ama Osei" />
+                    <input
+                      type="text"
+                      placeholder="Full Name"
+                      value={approverName}
+                      onChange={e => setApproverName(e.target.value)}
+                    />
                   </div>
                 </div>
               </div>
@@ -497,14 +743,24 @@ const FinancePartnerPortal: React.FC<FinancePartnerPortalProps> = ({ trades, onN
             {onboardingStep === 4 && (
               <div style={{ color: 'var(--text2)', fontSize: '14px', lineHeight: 1.6 }}>
                 <p style={{ marginBottom: '16px' }}>Provide the details for the capital disbursement account. This account must be held in USD or equivalent stable currency.</p>
-                <div className="g2" style={{ gap: '16px' }}>
+                <div className="g2">
                   <div className="field">
                     <label>Bank Name</label>
-                    <input type="text" placeholder="ECobank Ghana" />
+                    <input
+                      type="text"
+                      placeholder="e.g. Ecobank Ghana"
+                      value={bankName}
+                      onChange={e => setBankName(e.target.value)}
+                    />
                   </div>
                   <div className="field">
                     <label>SWIFT / Routing</label>
-                    <input type="text" placeholder="ECOBGHAC" />
+                    <input
+                      type="text"
+                      placeholder="e.g. ECOBGHAC"
+                      value={bankSwift}
+                      onChange={e => setBankSwift(e.target.value.toUpperCase())}
+                    />
                   </div>
                 </div>
               </div>
@@ -513,30 +769,35 @@ const FinancePartnerPortal: React.FC<FinancePartnerPortalProps> = ({ trades, onN
             {onboardingStep === 5 && (
               <div style={{ color: 'var(--text2)', fontSize: '14px', lineHeight: 1.6 }}>
                 <p style={{ marginBottom: '24px' }}>A formal orientation session with your assigned Deal Officer to walkthrough active cycles and the risk reporting dashboard.</p>
-                <div style={{ padding: '20px', background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: '12px', color: '#9A3412' }}>
-                  <div style={{ fontWeight: 700, marginBottom: '4px' }}>Scheduled Session</div>
-                  <div>Tuesday, 21 April 2026 · 10:00 AM GMT</div>
-                </div>
+                {briefingDate ? (
+                  <div style={{ padding: '20px', background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: '12px', color: '#9A3412' }}>
+                    <div style={{ fontWeight: 700, marginBottom: '4px' }}>Scheduled Session</div>
+                    <div>{new Date(briefingDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · 10:00 AM GMT</div>
+                  </div>
+                ) : (
+                  <div style={{ padding: '20px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '12px', color: '#64748B' }}>
+                    <div style={{ fontWeight: 700, marginBottom: '4px' }}>Session to be Scheduled</div>
+                    <div>Your Deal Officer will contact you to arrange a convenient time. Completing this step confirms you are ready to proceed.</div>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '40px', paddingTop: '24px', borderTop: '1px solid #F3F4F6' }}>
-            <button 
-              className="btn btn-secondary" 
-              disabled={onboardingStep === 1} 
+            <button
+              className="btn btn-secondary"
+              disabled={onboardingStep === 1}
               onClick={() => setOnboardingStep(s => Math.max(1, s - 1))}
             >
               Previous
             </button>
-            <Button 
-              variant="primary" 
-              onClick={() => {
-                setOnboardingStep(prev => prev + 1);
-                onNotify(`Step ${onboardingStep} completed.`);
-              }}
+            <Button
+              variant="primary"
+              disabled={savingStep}
+              onClick={handleCompleteStep}
             >
-              {onboardingStep === 5 ? 'Finish Onboarding' : 'Complete Step ' + onboardingStep + ' →'}
+              {savingStep ? 'Saving…' : onboardingStep === 5 ? 'Finish Onboarding' : 'Complete Step ' + onboardingStep + ' →'}
             </Button>
           </div>
         </div>
@@ -551,7 +812,7 @@ const FinancePartnerPortal: React.FC<FinancePartnerPortalProps> = ({ trades, onN
           <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text)' }}>Settlement Reports</h2>
           <p style={{ fontSize: '14px', color: 'var(--text2)' }}>Detailed breakdown of payouts, fees, and historical performance.</p>
         </div>
-        <Card style={{ padding: '60px 40px', textAlign: 'center', color: '#9CA3AF' }}>
+        <Card style={{ textAlign: 'center', color: '#9CA3AF' }}>
           <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'center', color: 'var(--cr)' }}>
             <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="20" x2="18" y2="10" />
@@ -569,8 +830,8 @@ const FinancePartnerPortal: React.FC<FinancePartnerPortalProps> = ({ trades, onN
   };
 
   return (
-    <div className="fade-in">
-      <div className="content-area">
+    <div className="fade-in" style={{ width: '100%', maxWidth: '100%' }}>
+      <div className="content-area" style={{ width: '100%', maxWidth: '100%' }}>
         {subView === 'inbox' && renderInbox()}
         {subView === 'overview' && renderOverview()}
         {subView === 'portfolio' && renderPortfolio()}

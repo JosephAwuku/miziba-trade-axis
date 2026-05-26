@@ -38,23 +38,34 @@ const Portfolio: React.FC = () => {
 
   const stageKeys = Object.keys(metrics.stage_distribution);
   const totalStageCount = metrics.total_deals;
+  const pipelineFacility = metrics.finance_facility_pipeline_usd ?? 0;
+  const capitalDeployed = metrics.capital_deployed_usd ?? 0;
+  const pipelinePct =
+    metrics.total_contract_value_usd > 0
+      ? Math.round((pipelineFacility / metrics.total_contract_value_usd) * 100)
+      : 0;
 
   return (
     <div className="fade-in">
-      <div className="g4" style={{ marginBottom: '20px' }}>
+      <div className="g5" style={{ marginBottom: '20px' }}>
         <Card className="metric">
           <div className="metric-label">TOTAL PORTFOLIO VALUE</div>
           <div className="metric-val">{usd(metrics.total_contract_value_usd)}</div>
-          <div style={{ fontSize: '10px', color: '#16A34A', marginTop: '4px' }}>Across {metrics.countries_active} active countries</div>
+          <div style={{ fontSize: '10px', color: '#8B0000', marginTop: '4px' }}>Across {metrics.countries_active} active countries</div>
+        </Card>
+        <Card className="metric">
+          <div className="metric-label">FINANCE FACILITY (PIPELINE)</div>
+          <div className="metric-val" style={{ color: '#7C3AED' }}>{usd(pipelineFacility)}</div>
+          <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '4px' }}>Requested · pre-funding ({pipelinePct}% of contract value)</div>
         </Card>
         <Card className="metric">
           <div className="metric-label">CAPITAL DEPLOYED</div>
-          <div className="metric-val" style={{ color: '#7C3AED' }}>{usd(metrics.total_facility_usd)}</div>
-          <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '4px' }}>{Math.round(metrics.total_facility_usd / metrics.total_contract_value_usd * 100)}% Participation rate</div>
+          <div className="metric-val" style={{ color: '#8B0000' }}>{usd(capitalDeployed)}</div>
+          <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '4px' }}>Funded deals only (Funded → Settled)</div>
         </Card>
         <Card className="metric">
           <div className="metric-label">AVG RISK SCORE</div>
-          <div className="metric-val" style={{ color: metrics.avg_risk_score >= 70 ? '#16A34A' : '#D97706' }}>
+          <div className="metric-val" style={{ color: metrics.avg_risk_score >= 70 ? '#8B0000' : '#D97706' }}>
             {Math.round(metrics.avg_risk_score)}<small style={{ fontSize: '12px', opacity: 0.6 }}>/100</small>
           </div>
           <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '4px' }}>Weighted portfolio average</div>
@@ -62,7 +73,7 @@ const Portfolio: React.FC = () => {
         <Card className="metric">
           <div className="metric-label">TOTAL VOLUME</div>
           <div className="metric-val">{mt(metrics.total_volume_mt)}</div>
-          <div style={{ fontSize: '10px', color: '#2563EB', marginTop: '4px' }}>{metrics.farmers_reached} farmers impacted</div>
+          <div style={{ fontSize: '10px', color: '#8B0000', marginTop: '4px' }}>{metrics.farmers_reached} farmers impacted</div>
         </Card>
       </div>
 
@@ -112,7 +123,7 @@ const Portfolio: React.FC = () => {
                 </div>
                 <ProgressBar 
                   value={(metrics.commodity_breakdown[k] / metrics.total_contract_value_usd) * 100} 
-                  color={commodityConfig[k]?.c || '#2563EB'} 
+                  color={commodityConfig[k]?.c || '#8B0000'} 
                   height="6px" 
                 />
               </div>
@@ -130,11 +141,11 @@ const Portfolio: React.FC = () => {
             </div>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '10px', color: '#6B7280', fontWeight: 600, marginBottom: '8px' }}>SLA COMPLIANCE</div>
-              <div style={{ fontSize: '24px', fontWeight: 800, color: '#16A34A' }}>{metrics.farmer_sla_compliance_pct}%</div>
+              <div style={{ fontSize: '24px', fontWeight: 800, color: '#8B0000' }}>{metrics.farmer_sla_compliance_pct}%</div>
             </div>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '10px', color: '#6B7280', fontWeight: 600, marginBottom: '8px' }}>WEIGHT RECONCILED</div>
-              <div style={{ fontSize: '24px', fontWeight: 800, color: '#2563EB' }}>{metrics.weight_reconciliation_pct}%</div>
+              <div style={{ fontSize: '24px', fontWeight: 800, color: '#8B0000' }}>{metrics.weight_reconciliation_pct}%</div>
             </div>
           </div>
         </Card>

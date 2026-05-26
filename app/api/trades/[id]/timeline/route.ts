@@ -9,7 +9,9 @@ export async function GET(
 ) {
   try {
     const { id: tradeId } = await params;
-    const auth = await getAuthenticatedUser();
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+    const auth = await getAuthenticatedUser(token);
 
     if (!auth) {
       return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
@@ -22,7 +24,7 @@ export async function GET(
       .from('audit_log') as any) // Match schema.sql: audit_log (singular)
       .select(`
         *,
-        users (
+        users!audit_log_user_id_fkey (
           full_name,
           role
         )

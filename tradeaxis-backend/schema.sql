@@ -403,6 +403,23 @@ CREATE TABLE trade_documents (
 CREATE INDEX idx_docs_trade ON trade_documents(trade_id);
 CREATE INDEX idx_docs_type ON trade_documents(doc_type);
 
+-- ORGANISATION DOCUMENTS
+CREATE TABLE organisation_documents (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  org_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  doc_type TEXT NOT NULL,
+  name TEXT NOT NULL,
+  storage_path TEXT NOT NULL UNIQUE,
+  status TEXT NOT NULL DEFAULT 'UPLOADED' CHECK (status IN ('UPLOADED','UNDER_REVIEW','VERIFIED','REJECTED')),
+  uploaded_by UUID REFERENCES users(id),
+  reviewed_by UUID REFERENCES users(id),
+  reviewed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(org_id, doc_type));
+CREATE INDEX idx_org_docs_org ON organisation_documents(org_id);
+CREATE INDEX idx_org_docs_status ON organisation_documents(status);
+
 CREATE TABLE document_access_log (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   doc_id UUID NOT NULL REFERENCES trade_documents(id),
@@ -424,6 +441,7 @@ CREATE INDEX idx_stage_log_trade ON trade_stage_log(trade_id);
 CREATE TABLE notifications (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES users(id), trade_id UUID REFERENCES trades(id),
+  type TEXT NOT NULL DEFAULT 'info',
   channel notification_channel NOT NULL DEFAULT 'in_app',
   status notification_status NOT NULL DEFAULT 'QUEUED',
   subject TEXT, body TEXT NOT NULL, template_id TEXT,
@@ -510,7 +528,7 @@ BEGIN NEW.updated_at=NOW(); RETURN NEW; END; $$ LANGUAGE plpgsql;
 DO $$ DECLARE t TEXT;
 BEGIN FOR t IN SELECT unnest(ARRAY['organisations','users','trader_profiles',
   'finance_partner_profiles','buyers','trades','trade_tranches','trade_validations',
-  'deployment_batches','shipment_records','waterfall_instructions','notifications','system_config'])
+  'deployment_batches','shipment_records','waterfall_instructions','system_config'])
   LOOP EXECUTE FORMAT('CREATE TRIGGER trg_updated_at BEFORE UPDATE ON %I FOR EACH ROW EXECUTE FUNCTION set_updated_at()',t);
   END LOOP; END; $$;
 

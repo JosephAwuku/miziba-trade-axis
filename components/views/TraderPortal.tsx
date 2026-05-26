@@ -8,18 +8,42 @@ import ApplicationForm from '../trader/ApplicationForm';
 import TraderDocuments from '../trader/TraderDocuments';
 import TraderOnboarding from '../trader/TraderOnboarding';
 import TraderOverview from '../trader/TraderOverview';
+import DraftsView from '../trader/DraftsView';
+import TraderSettlementView from '../trader/TraderSettlementView';
+import StageBadge from '../trader/StageBadge';
+import { apiClient } from '@/lib/api';
+import { commodityLabel } from '@/lib/data';
 
 interface TraderPortalProps {
   trades: Trade[];
   onNotify: (msg: string, type?: string) => void;
   view: string;
   onViewChange: (view: View) => void;
+  onRefresh: () => void;
 }
 
-const TraderPortal: React.FC<TraderPortalProps> = ({ trades, onNotify, view, onViewChange }) => {
+const TraderPortal: React.FC<TraderPortalProps> = ({ trades, onNotify, view, onViewChange, onRefresh }) => {
   // Derive internal sub-view from global view ID
-  const currentSubView = view.replace('trs_', '') as 'status' | 'apply' | 'docs' | 'settle' | 'verify' | 'overview';
+  const currentSubView = view.replace('trs_', '') as 'status' | 'apply' | 'company' | 'settle' | 'verify' | 'overview' | 'drafts';
+  const profileView = currentSubView === 'verify' ? 'company' : currentSubView;
   const [activeTradeId, setActiveTradeId] = useState<string | null>(null);
+  const [editingDraftId, setEditingDraftId] = useState<string | undefined>(undefined);
+  const [traderKycStatus, setTraderKycStatus] = useState<string>('PENDING');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const profile = await apiClient.getTraderProfile();
+        if (!cancelled) setTraderKycStatus(profile.kyc_status || 'PENDING');
+      } catch {
+        if (!cancelled) setTraderKycStatus('PENDING');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [view]);
 
   // Handle local navigation by updating global state
   const handleLocalNavigate = (subView: string) => {
@@ -34,113 +58,164 @@ const TraderPortal: React.FC<TraderPortalProps> = ({ trades, onNotify, view, onV
       {/* Primary Trader Views */}
       
       {currentSubView === 'overview' && (
-        <TraderOverview trades={trades} onNavigate={handleLocalNavigate} onNotify={onNotify} />
+        <TraderOverview 
+          trades={trades} 
+          onNavigate={handleLocalNavigate} 
+          onSelectTrade={setActiveTradeId}
+          onNotify={onNotify} 
+        />
       )}
 
       {currentSubView === 'status' && (
-        activeTrade ? (
+        !activeTradeId ? (
           <div className="fade-in">
-            <StatusTracker trade={activeTrade} />
-            <div className="card" style={{ padding: '16px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px', color: 'var(--text)' }}>Deal Summary</div>
-              <div className="g3" style={{ marginBottom: '12px' }}>
-                {[
-                  ['Commodity', `${activeTrade.cmd} Gr.${activeTrade.gr}`],
-                  ['Volume', `${activeTrade.vol} MT`],
-                  ['Contract Value', `$${activeTrade.cv.toLocaleString()}`],
-                  ['Your Equity', `$${activeTrade.eq.toLocaleString()}`],
-                  ['Finance Facility', `$${activeTrade.ff.toLocaleString()}`],
-                  ['Deadline', activeTrade.dl],
-                  ['Buyer', activeTrade.buyer],
-                  ['Delivery', activeTrade.dp],
-                  ['Payment Terms', `${activeTrade.pt} days`]
-                ].map((x) => (
-                  <div key={x[0]} style={{ background: '#F8FAFC', borderRadius: '7px', padding: '10px' }}>
-                    <div style={{ fontSize: '9px', color: 'var(--text3)', fontWeight: 600, marginBottom: '3px' }}>{x[0].toUpperCase()}</div>
-                    <div style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text)' }}>{x[1]}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
+             <div className="card" style={{ padding: '24px' }}>
+               <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '20px', color: 'var(--text)' }}>
+                 Your Trade Applications
+               </h3>
+               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                 {trades.length === 0 ? (
+                   <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text2)' }}>No applications found.</div>
+                 ) : (
+                   trades.map(t => (
+                     <div key={t.id} style={{ 
+                       display: 'flex', 
+                       justifyContent: 'space-between', 
+                       alignItems: 'center', 
+                       padding: '16px 20px', 
+                       background: '#fff',
+                       border: '1.5px solid transparent',
+                       borderRadius: '12px',
+                       transition: 'all 0.2s',
+                       backgroundImage: 'linear-gradient(#fff, #fff), linear-gradient(135deg, var(--cr), var(--pu))',
+                       backgroundOrigin: 'border-box',
+                       backgroundClip: 'padding-box, border-box',
+                     }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>
+                            {commodityLabel(t.cmd)} · {t.vol} MT
+                          </div>
+                          <div style={{ fontSize: '13px', color: 'var(--text3)', display: 'flex', gap: '12px' }}>
+                            <span>ID: <span className="mono">{t.id.slice(0, 8)}</span></span>
+                            <span>Buyer: {t.buyer}</span>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                          <StageBadge stage={t.stage} />
+                          <Button 
+                            variant="primary" 
+                            size="sm" 
+                            style={{ padding: '8px 20px', fontSize: '13px', fontWeight: 700 }}
+                            onClick={() => setActiveTradeId(t.id)}
+                          >
+                            Track Application →
+                          </Button>
+                        </div>
+                     </div>
+                   ))
+                 )}
+               </div>
+             </div>
           </div>
         ) : (
-          <div className="card" style={{ 
-            padding: '60px', 
-            textAlign: 'center', 
-            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)',
-            border: '2px solid transparent',
-            backgroundImage: 'linear-gradient(#fff, #fff), linear-gradient(135deg, var(--cr), var(--pu))',
-            backgroundOrigin: 'border-box',
-            backgroundClip: 'padding-box, border-box'
-          }}>
-            <h3 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text)', marginBottom: '12px' }}>
-              No active trades found
-            </h3>
-            <p style={{ fontSize: '14px', color: 'var(--text2)', lineHeight: 1.6, maxWidth: '420px', margin: '0 auto 24px' }}>
-              You haven&apos;t started any trades yet. To begin getting funding for your trades, please submit your first application.
-            </p>
-            <Button 
-                variant="primary" 
-                style={{ padding: '14px 36px', fontSize: '15px', fontWeight: 700, boxShadow: '0 4px 12px rgba(139, 0, 0, 0.2)' }}
-                onClick={() => handleLocalNavigate('apply')}
-            >
-              Submit New Trade Application
-            </Button>
-          </div>
+          (() => {
+            const selectedTrade = trades.find(t => t.id === activeTradeId);
+            if (!selectedTrade) return null;
+            return (
+              <div className="fade-in">
+                <div style={{ marginBottom: '20px' }}>
+                  <button 
+                    onClick={() => setActiveTradeId(null)}
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px', 
+                      background: 'none', 
+                      border: 'none', 
+                      cursor: 'pointer', 
+                      color: 'var(--cr)', 
+                      fontSize: '13px', 
+                      fontWeight: 800,
+                      padding: '4px 0',
+                      transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                      letterSpacing: '0.02em'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.transform = 'translateX(-4px)'}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = 'none'}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="19" y1="12" x2="5" y2="12"></line>
+                      <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                    BACK TO APPLICATIONS
+                  </button>
+                </div>
+                <StatusTracker
+                  trade={selectedTrade}
+                  kycStatus={traderKycStatus}
+                  onNavigateToVerify={() => handleLocalNavigate('company')}
+                />
+                <div className="card" style={{ padding: '24px', marginBottom: '14px' }}>
+                  <div style={{ fontSize: '16px', fontWeight: 800, marginBottom: '16px', color: 'var(--text)', letterSpacing: '-0.01em' }}>Deal Summary</div>
+                  <div className="g3" style={{ marginBottom: '12px' }}>
+                    {[
+                      ['Commodity', `${commodityLabel(selectedTrade.cmd)} Gr.${selectedTrade.gr}`],
+                      ['Volume', `${selectedTrade.vol} MT`],
+                      ['Contract Value', `$${selectedTrade.cv.toLocaleString()}`],
+                      ['Your Equity', `$${selectedTrade.eq.toLocaleString()}`],
+                      ['Finance Facility', `$${selectedTrade.ff.toLocaleString()}`],
+                      ['Deadline', selectedTrade.dl],
+                      ['Buyer', selectedTrade.buyer],
+                      ['Delivery', selectedTrade.dp],
+                      ['Payment Terms', `${selectedTrade.pt} days`]
+                    ].map((x) => (
+                      <div key={x[0]} style={{ background: '#F8FAFC', borderRadius: '7px', padding: '12px' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--text3)', fontWeight: 700, marginBottom: '4px', letterSpacing: '0.03em' }}>{x[0].toUpperCase()}</div>
+                        <div style={{ fontSize: '14.5px', fontWeight: 600, color: 'var(--text)' }}>{x[1]}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <TraderDocuments trade={selectedTrade} onNotify={onNotify} />
+              </div>
+            );
+          })()
         )
       )}
 
       {currentSubView === 'apply' && (
         <ApplicationForm 
-          onNotify={onNotify} 
+          onNotify={onNotify}
+          onNavigate={handleLocalNavigate}
+          draftId={editingDraftId}
           onSuccess={(newTrade) => {
-            // Root fetchTrades will handle refresh
-          }} 
+            setEditingDraftId(undefined);
+            onRefresh();
+            onViewChange('trs_overview');
+          }}
+          onDraftSaved={() => {
+            onNotify('Draft saved successfully', 'success');
+          }}
         />
       )}
 
-      {currentSubView === 'verify' && (
+      {currentSubView === 'drafts' && (
+        <DraftsView 
+          onEditDraft={(draftId) => {
+            setEditingDraftId(draftId);
+            onViewChange('trs_apply');
+          }}
+          onNotify={onNotify}
+          onNavigate={handleLocalNavigate}
+        />
+      )}
+
+      {(profileView === 'company') && (
         <TraderOnboarding onNotify={onNotify} />
       )}
 
-      {currentSubView === 'docs' && (
-        activeTrade ? (
-          <TraderDocuments trade={activeTrade} onNotify={onNotify} />
-        ) : (
-          <div className="card" style={{ 
-            padding: '60px', 
-            textAlign: 'center', 
-            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)',
-            border: '2px solid transparent',
-            backgroundImage: 'linear-gradient(#fff, #fff), linear-gradient(135deg, var(--cr), var(--pu))',
-            backgroundOrigin: 'border-box',
-            backgroundClip: 'padding-box, border-box'
-          }}>
-            <h3 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text)', marginBottom: '12px' }}>
-              No documents to show yet
-            </h3>
-            <p style={{ fontSize: '14px', color: 'var(--text2)', lineHeight: 1.6, maxWidth: '420px', margin: '0 auto 24px' }}>
-              Documents will appear here once your trade starts and is being processed. 
-            </p>
-            <Button 
-                variant="primary" 
-                style={{ padding: '14px 36px', fontSize: '15px', fontWeight: 700, boxShadow: '0 4px 12px rgba(139, 0, 0, 0.2)' }}
-                onClick={() => handleLocalNavigate('apply')}
-            >
-              Start New Trade Application
-            </Button>
-          </div>
-        )
-      )}
-
       {currentSubView === 'settle' && (
-        <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
-          <div style={{ fontSize: '28px', marginBottom: '10px' }}>⬢</div>
-          <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '6px' }}>Settlement Records</div>
-          <p style={{ fontSize: '11px', color: '#6B7280', lineHeight: '1.6', maxWidth: '300px', margin: '0 auto' }}>
-            Settlement records and waterfall summary appear after trade closure.
-          </p>
-        </div>
+        <TraderSettlementView trades={trades} onNotify={onNotify} />
       )}
     </div>
   );

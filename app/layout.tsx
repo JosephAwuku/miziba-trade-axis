@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Sans, JetBrains_Mono } from "next/font/google";
+import { JetBrains_Mono, Work_Sans } from "next/font/google";
 import "./globals.css";
 import { NavigationProvider } from "@/lib/contexts/NavigationContext";
 
-const ibmPlexSans = IBM_Plex_Sans({
-  variable: "--font-ibm-plex-sans",
+const workSans = Work_Sans({
+  variable: "--font-work-sans",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
 });
@@ -26,8 +26,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${ibmPlexSans.variable} ${jetbrainsMono.variable}`}>
-      <body className={ibmPlexSans.className}>
+    <html lang="en" className={`${workSans.variable} ${jetbrainsMono.variable}`}>
+      <body className={workSans.className}>
         <NavigationProvider>
           {children}
         </NavigationProvider>

@@ -3,13 +3,16 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Badge } from './ui';
 import { apiClient } from '@/lib/api';
+import { isApiError } from '@/lib/api-errors';
 
 interface FDPPreviewProps {
   tradeId: string;
   onNotify: (msg: string, type?: string) => void;
+  onGenerated?: () => void;
+  readOnly?: boolean;
 }
 
-const FDPPreview: React.FC<FDPPreviewProps> = ({ tradeId, onNotify }) => {
+const FDPPreview: React.FC<FDPPreviewProps> = ({ tradeId, onNotify, onGenerated, readOnly = false }) => {
   const [fdpData, setFdpData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [genLoading, setGenLoading] = useState(false);
@@ -33,11 +36,22 @@ const FDPPreview: React.FC<FDPPreviewProps> = ({ tradeId, onNotify }) => {
   const handleGenerate = async () => {
     try {
       setGenLoading(true);
-      await apiClient.generateFinanceDataPackage(tradeId, {});
-      onNotify('Finance Data Package generated successfully');
+      const res = await apiClient.generateFinanceDataPackage(tradeId, {}) as {
+        success?: boolean;
+        message?: string;
+        advanced_to_finance_review?: boolean;
+        requires_ceo_approval?: boolean;
+      };
+      const msg =
+        res.message ||
+        (res.advanced_to_finance_review !== false
+          ? 'Finance Data Package generated and trade sent to Finance Review.'
+          : 'FDP generated. CEO approval required before Finance Review.');
+      onNotify(msg, res.requires_ceo_approval ? 'warning' : undefined);
       fetchFDP();
+      onGenerated?.();
     } catch (err) {
-      onNotify('Failed to generate FDP', 'error');
+      onNotify(isApiError(err) ? err.message : 'Failed to generate FDP', 'error');
     } finally {
       setGenLoading(false);
     }
@@ -82,7 +96,7 @@ const FDPPreview: React.FC<FDPPreviewProps> = ({ tradeId, onNotify }) => {
           <p style={{ fontSize: '12px', color: '#6B7280', margin: '8px 0 20px' }}>
             A formal Finance Data Package is required for Finance Partner review.
           </p>
-          <Button onClick={handleGenerate} disabled={genLoading}>
+          <Button onClick={handleGenerate} disabled={genLoading || readOnly}>
             {genLoading ? 'Generating...' : '🛠 Generate Package Now'}
           </Button>
         </Card>
@@ -119,11 +133,13 @@ const FDPPreview: React.FC<FDPPreviewProps> = ({ tradeId, onNotify }) => {
             ))}
             {!fdpData.waterfall_preview && <div style={{ fontSize: '11px', fontStyle: 'italic' }}>Detailed waterfall in PDF document.</div>}
             
+            {!readOnly && (
             <div style={{ marginTop: '20px' }}>
                <Button variant="secondary" style={{ width: '100%' }} onClick={handleGenerate} disabled={genLoading}>
                  🔄 Regenerate with Latest Data
                </Button>
             </div>
+            )}
           </Card>
         </div>
       )}

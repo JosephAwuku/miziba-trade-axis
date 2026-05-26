@@ -3,7 +3,64 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, getUserFromSession, getAuthenticatedUser } from '@/lib/supabase';
 import { hasPermission } from '@/lib/rbac';
 import { TradeSummary, TradeApplicationInput, User } from '@/lib/types';
-import { notifyInternalRoles } from '@/lib/notifications';
+import { notifyNewTradeSubmission } from '@/lib/notifications';
+import { assertTraderCanSubmitTrades } from '@/lib/trader-kyc';
+import { getDocumentsBucket } from '@/lib/supabase/buckets';
+import {
+  hasAllRequiredTradeDocs,
+  missingRequiredTradeDocLabels,
+  type TradeDocumentRecord,
+} from '@/lib/trade-documents';
+
+async function migrateDraftDocumentsToTrade(
+  admin: typeof supabaseAdmin,
+  {
+    draftId,
+    tradeId,
+    orgId,
+    uploadedBy,
+  }: { draftId: string; tradeId: string; orgId: string; uploadedBy: string }
+) {
+  const { data: draft } = await admin
+    .from('draft_trades')
+    .select('draft_data')
+    .eq('id', draftId)
+    .eq('trader_org_id', orgId)
+    .single();
+
+  const draftData = (draft?.draft_data || {}) as Record<string, unknown>;
+  const documents = (draftData.trade_documents as TradeDocumentRecord[]) || [];
+  const bucket = getDocumentsBucket();
+
+  for (const doc of documents) {
+    if (!doc.storage_path) continue;
+
+    const safeName = doc.storage_path.split('/').pop() || doc.name.replace(/\s+/g, '_');
+    const tradePath = `trades/${tradeId}/${doc.doc_type}_${Date.now()}_${safeName}`;
+
+    const { data: fileBlob, error: downloadError } = await admin.storage.from(bucket).download(doc.storage_path);
+    if (downloadError || !fileBlob) {
+      console.error('Draft document copy failed:', downloadError);
+      continue;
+    }
+
+    const { error: uploadError } = await admin.storage.from(bucket).upload(tradePath, fileBlob, { upsert: true });
+    if (uploadError) {
+      console.error('Trade document upload failed:', uploadError);
+      continue;
+    }
+
+    await (admin.from('trade_documents') as any).insert({
+      trade_id: tradeId,
+      name: doc.name,
+      doc_type: doc.doc_type,
+      s3_key: tradePath,
+      size_bytes: doc.size_bytes || 0,
+      uploaded_by: uploadedBy,
+      status: 'UPLOADED',
+    });
+  }
+}
 
 // GET /api/trades — List trades (filtered by role)
 export async function GET(request: NextRequest) {
@@ -36,6 +93,7 @@ export async function GET(request: NextRequest) {
     const trader_org_id = searchParams.get('trader_org_id');
     const from_date = searchParams.get('from_date');
     const to_date = searchParams.get('to_date');
+    const search = searchParams.get('search');
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
     const per_page = Math.min(100, parseInt(searchParams.get('per_page') || '25'));
     const offset = (page - 1) * per_page;
@@ -61,7 +119,8 @@ export async function GET(request: NextRequest) {
         trader_org_id,
         fp_org_id,
         organisations!trades_trader_org_id_fkey (
-          name
+          name,
+          kyc_status
         ),
         buyers (
           name
@@ -75,6 +134,9 @@ export async function GET(request: NextRequest) {
       query = query.eq('trader_org_id', typedUser.org_id);
     } else if (typedUser.role === 'finance_partner') {
       query = query.or(`fp_org_id.eq.${typedUser.org_id},stage.eq.FINANCE_REVIEW`);
+    } else if (['deal_officer', 'ceo', 'cfo', 'ops_admin'].includes(typedUser.role as string)) {
+      // Staff only see submitted trades from KYC-verified trader organisations
+      query = query.eq('organisations.kyc_status', 'VERIFIED');
     }
 
     if (stage) {
@@ -95,6 +157,9 @@ export async function GET(request: NextRequest) {
     if (to_date) {
       query = query.lte('applied_at', to_date);
     }
+    if (search) {
+      query = query.ilike('trade_ref', `%${search}%`);
+    }
 
     const { data: trades, error, count } = await query;
 
@@ -114,6 +179,7 @@ export async function GET(request: NextRequest) {
       finance_facility_usd: trade.finance_facility_usd,
       stage: trade.stage,
       kyc_status: trade.kyc_status,
+      trader_org_kyc_status: trade.organisations?.kyc_status || 'PENDING',
       risk_score: trade.risk_score,
       capital_deployed_pct: trade.capital_deployed_pct,
       deadline_date: trade.deadline_date,
@@ -152,7 +218,57 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
     }
 
+    const admin = supabaseAdmin;
+    const kycCheck = await assertTraderCanSubmitTrades(admin, typedUser.org_id);
+    if (!kycCheck.ok) {
+      return NextResponse.json(
+        {
+          error: 'KYC_REQUIRED',
+          code: 'KYC_REQUIRED',
+          kyc_status: kycCheck.status,
+          message: `${kycCheck.message} Save your application as a draft until verification is complete.`,
+        },
+        { status: 403 }
+      );
+    }
+
     const body: TradeApplicationInput = await request.json();
+
+    if (!body.draft_id) {
+      return NextResponse.json(
+        {
+          error: 'TRADE_DOCUMENTS_REQUIRED',
+          message: 'Save your application as a draft and upload all required trade documents before submitting.',
+        },
+        { status: 422 }
+      );
+    }
+
+    const { data: draftRow } = await admin
+      .from('draft_trades')
+      .select('draft_data')
+      .eq('id', body.draft_id)
+      .eq('trader_org_id', typedUser.org_id)
+      .single();
+
+    if (!draftRow) {
+      return NextResponse.json({ error: 'DRAFT_NOT_FOUND', message: 'Draft not found.' }, { status: 404 });
+    }
+
+    const draftDocuments = ((draftRow.draft_data as Record<string, unknown>)?.trade_documents ||
+      []) as TradeDocumentRecord[];
+
+    if (!hasAllRequiredTradeDocs(draftDocuments)) {
+      const missing = missingRequiredTradeDocLabels(draftDocuments);
+      return NextResponse.json(
+        {
+          error: 'TRADE_DOCUMENTS_INCOMPLETE',
+          message: `Upload all required trade documents before submitting: ${missing.join(', ')}.`,
+          missing,
+        },
+        { status: 422 }
+      );
+    }
 
     // Validation
     if (!body.commodity || !body.grade || !body.volume_mt || !body.buyer_id ||
@@ -182,9 +298,7 @@ export async function POST(request: NextRequest) {
     // Calculate derived values
     const contractValue = body.volume_mt * body.price_per_mt_usd;
 
-    const admin = supabaseAdmin;
-
-    // Insert trade
+    // trades.kyc_status is a legacy column (was misused as company KYC). Submissions require org VERIFIED.
     const { data: trade, error } = await (admin
       .from('trades') as any)
       .insert({
@@ -194,7 +308,6 @@ export async function POST(request: NextRequest) {
         grade: body.grade,
         volume_mt: body.volume_mt,
         price_per_mt_usd: body.price_per_mt_usd,
-        contract_value_usd: contractValue,
         procurement_cost_usd: body.procurement_cost_usd,
         trader_equity_usd: body.trader_equity_usd,
         finance_facility_usd: body.finance_facility_usd,
@@ -202,7 +315,7 @@ export async function POST(request: NextRequest) {
         deadline_date: body.deadline_date,
         payment_terms_days: body.payment_terms_days,
         stage: 'SUBMITTED',
-        kyc_status: 'PENDING',
+        kyc_status: 'VERIFIED',
         capital_deployed_pct: 0,
         applied_at: new Date().toISOString(),
       })
@@ -216,14 +329,35 @@ export async function POST(request: NextRequest) {
 
     const tradeData = trade as any;
 
+    try {
+      await migrateDraftDocumentsToTrade(admin, {
+        draftId: body.draft_id,
+        tradeId: tradeData.id,
+        orgId: typedUser.org_id,
+        uploadedBy: typedUser.id,
+      });
+      await admin.from('draft_trades').delete().eq('id', body.draft_id).eq('trader_org_id', typedUser.org_id);
+    } catch (docErr) {
+      console.error('Draft document migration failed:', docErr);
+    }
+
     // Create empty validation checklist
     await (supabaseAdmin as any)
       .from('trade_validations')
       .insert({ trade_id: tradeData.id });
 
+    // Closure checklist row (required before CLOSED + DB lock semantics)
+    const { error: closureErr } = await (supabaseAdmin as any)
+      .from('trade_closure_checklists')
+      .insert({ trade_id: tradeData.id });
+    if (closureErr) {
+      console.error('trade_closure_checklists insert error:', closureErr);
+      return NextResponse.json({ error: 'DATABASE_ERROR' }, { status: 500 });
+    }
+
     // Notify internal roles (CEO, Ops, Officers) about new submission
     try {
-      await notifyInternalRoles(admin, ['ceo', 'ops_admin', 'deal_officer'], {
+      await notifyNewTradeSubmission(admin, {
         subject: 'New Trade Submitted',
         body: `A new ${tradeData.commodity} trade (${tradeData.trade_ref}) has been submitted for validation.`,
         type: 'TRADE_SUBMITTED',
@@ -231,6 +365,18 @@ export async function POST(request: NextRequest) {
       });
     } catch (notifErr) {
       console.error('Submission notification failed:', notifErr);
+    }
+
+    // Confirm submission back to the trader
+    try {
+      const { notifyTraderOrg } = await import('@/lib/notifications');
+      await notifyTraderOrg(admin, typedUser.org_id, {
+        subject: `Trade ${tradeData.trade_ref} submitted successfully`,
+        body: `Your ${tradeData.commodity} trade application (${tradeData.trade_ref}) has been received and is now under validation by our deal team. You will be notified when its status changes.`,
+        type: 'TRADE_SUBMITTED',
+      });
+    } catch (notifErr) {
+      console.error('Trader submission confirmation failed:', notifErr);
     }
 
     return NextResponse.json(tradeData, { status: 201 });

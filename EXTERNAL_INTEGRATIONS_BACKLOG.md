@@ -1,6 +1,8 @@
 # External Integrations Backlog
 
-This document preserves the technical specifications and integration nodes for **TrackGuard** and **TradeVault**. Use this as a reference when transitioning from the currently implemented "Standalone Mode" to "Fully Integrated Mode."
+**Status:** Future / optional. **Not in use.** TradeAxis today runs on **manual workflows** and **Next.js + Supabase** only. None of the services below are built or required for core operations.
+
+This document preserves draft integration ideas (**TrackGuard**, **TradeVault**, etc.) if the product later adds automatic webhooks and third-party systems.
 
 ---
 
@@ -74,8 +76,8 @@ Onboarding is currently a "soft" checklist in Standalone Mode. Users can see and
 ## Technical Debt / Next Steps for "Integrated Mode"
 
 1.  **Remove Override Guards**: When switching to Integrated Mode, the "Manual Override" buttons in the UI should be hidden or locked behind an "Emergency Admin" role only.
-2.  **Signature Verification**: The signature validation code in `tradeaxis-backend/core/webhook-processor.js` needs to be ported to a Next.js middleware.
+2.  **Signature Verification**: Implement HMAC verification in a Next.js route handler if/when webhooks are added. (Legacy Express reference code was removed from the repo.)
 3.  **Real-Time Subscriptions**: Ensure Supabase Real-time is enabled on the `webhook_events` table for observability.
 
 > [!NOTE]
-> All business logic handlers for these events are currently stored in `tradeaxis-backend/core/webhook-processor.js`.
+> Webhook handlers are not shipped in this repo. Design them alongside new `app/api/webhooks/*` routes when integrations are approved.

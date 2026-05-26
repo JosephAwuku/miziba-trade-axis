@@ -224,8 +224,10 @@ export function calculateRiskScore(scores: RiskBreakdown): RiskScoringResult {
  */
 export function calculateRiskBreakdown(trade: any): RiskBreakdown {
   // Simple risk calculation based on trade data
-  const buyerRisk = trade.kyc_status === 'VERIFIED' ? 5 : 15;
-  const traderRisk = 10; // Default moderate risk
+  const traderOrgKyc =
+    trade.trader_org_kyc_status || trade.organisations?.kyc_status || trade.kyc_status;
+  const buyerRisk = 10;
+  const traderRisk = traderOrgKyc === 'VERIFIED' ? 5 : 15;
   const commodityRisk = ['cashew', 'sesame'].includes(trade.commodity?.toLowerCase()) ? 5 : 12;
   const sourcingRisk = trade.volume_mt > 1000 ? 8 : 5;
   const logisticsRisk = trade.delivery_point ? 5 : 10;
@@ -250,15 +252,21 @@ export interface StageTransitionResult {
 
 /**
  * Validates and returns the next allowed stage for a trade.
+ * This function validates the business rules but expects database checks to be done by caller.
  */
 export function validateStageTransition(
   currentStage: string,
   proposedStage: string,
   guards: {
     validationComplete?: boolean;
+    riskScored?: boolean;
+    ceoApproved?: boolean;
     fpApproved?: boolean;
-    escrowFunded?: boolean;
+    capitalDeployed?: boolean;
+    goodsDelivered?: boolean;
     buyerPaid?: boolean;
+    waterfallComplete?: boolean;
+    closureComplete?: boolean;
   } = {}
 ): StageTransitionResult {
   const currentIdx = TRADE_STAGES.indexOf(currentStage as any);
@@ -274,25 +282,63 @@ export function validateStageTransition(
     };
   }
 
-  // Stage-specific guards
+  // Stage-specific guards with detailed requirements
+  if (proposedStage === 'UNDER_VALIDATION') {
+    // No guards needed - Deal Officer can always start validation
+    return { allowed: true, reason: null };
+  }
+
   if (proposedStage === 'VALIDATED') {
     if (!guards.validationComplete) {
       return { allowed: false, reason: 'All 5 validation items must be complete before advancing to VALIDATED.' };
     }
   }
+
+  if (proposedStage === 'FINANCE_REVIEW') {
+    if (!guards.validationComplete) {
+      return {
+        allowed: false,
+        reason: 'All validation checks must be complete before Finance Review.',
+      };
+    }
+    if (!guards.riskScored) {
+      return { allowed: false, reason: 'Risk scoring must be complete before sending to Finance Review.' };
+    }
+    if (guards.ceoApproved === false) {
+      return { allowed: false, reason: 'High-risk trades require CEO approval before Finance Review.' };
+    }
+  }
+
   if (proposedStage === 'FUNDED') {
     if (!guards.fpApproved) {
-      return { allowed: false, reason: 'Finance partner approval required before FUNDED.' };
+      return { allowed: false, reason: 'Finance Partner must approve before advancing to FUNDED.' };
     }
   }
+
   if (proposedStage === 'PROCURING') {
-    if (!guards.escrowFunded) {
-      return { allowed: false, reason: 'TradeVault escrow must be funded before PROCURING.' };
+    if (!guards.capitalDeployed) {
+      return { allowed: false, reason: 'Capital must be deployed (minimum 60%) before PROCURING.' };
     }
   }
+
+  if (proposedStage === 'DELIVERED') {
+    if (!guards.goodsDelivered) {
+      return { allowed: false, reason: 'Goods delivery must be confirmed before DELIVERED stage.' };
+    }
+  }
+
   if (proposedStage === 'SETTLED') {
     if (!guards.buyerPaid) {
-      return { allowed: false, reason: 'Buyer payment must be confirmed by CFO before SETTLED.' };
+      return { allowed: false, reason: 'Buyer payment must be confirmed before SETTLED.' };
+    }
+    if (!guards.waterfallComplete) {
+      return { allowed: false, reason: 'Waterfall settlement must be complete before SETTLED.' };
+    }
+  }
+
+  if (proposedStage === 'CLOSED') {
+    if (!guards.closureComplete) {
+      return { allowed: false, reason: 'All 7 closure checklist items must be complete before CLOSED.' };
     }
   }
 
@@ -357,6 +403,164 @@ export function docRetentionExpiry(uploadedAt: string): string {
   const d = new Date(uploadedAt);
   d.setFullYear(d.getFullYear() + DOC_RETENTION_YEARS);
   return d.toISOString();
+}
+
+// ─── STAGE GUARDS (DATABASE CHECKS) ──────────────────────────────────────────
+
+/**
+ * Checks database to verify all conditions for stage transition are met.
+ * Returns guards object to be passed to validateStageTransition.
+ */
+export async function checkStageTransitionGuards(
+  supabaseClient: any,
+  tradeId: string,
+  proposedStage: string
+): Promise<{
+  validationComplete?: boolean;
+  riskScored?: boolean;
+  ceoApproved?: boolean;
+  fpApproved?: boolean;
+  capitalDeployed?: boolean;
+  goodsDelivered?: boolean;
+  buyerPaid?: boolean;
+  waterfallComplete?: boolean;
+  closureComplete?: boolean;
+}> {
+  const guards: any = {};
+
+  // Check validation complete (all 5 items true)
+  if (proposedStage === 'VALIDATED') {
+    const { data: validation } = await supabaseClient
+      .from('trade_validations')
+      .select('buyer_verified, price_reasonable, sourcing_feasible, trader_qualified, margin_viable')
+      .eq('trade_id', tradeId)
+      .single();
+
+    guards.validationComplete = validation
+      ? validation.buyer_verified &&
+        validation.price_reasonable &&
+        validation.sourcing_feasible &&
+        validation.trader_qualified &&
+        validation.margin_viable
+      : false;
+  }
+
+  // Validation + risk + CEO (Finance Review prerequisites)
+  if (proposedStage === 'FINANCE_REVIEW') {
+    const { data: validation } = await supabaseClient
+      .from('trade_validations')
+      .select('buyer_verified, price_reasonable, sourcing_feasible, trader_qualified, margin_viable')
+      .eq('trade_id', tradeId)
+      .single();
+
+    guards.validationComplete = validation
+      ? validation.buyer_verified &&
+        validation.price_reasonable &&
+        validation.sourcing_feasible &&
+        validation.trader_qualified &&
+        validation.margin_viable
+      : false;
+
+    const { data: riskScore } = await supabaseClient
+      .from('trade_risk_scores')
+      .select('total_score')
+      .eq('trade_id', tradeId)
+      .single();
+
+    guards.riskScored = !!riskScore;
+
+    // If high risk (score < 55), check CEO approval — must match FDP / risk routes
+    if (riskScore && riskScore.total_score < 55) {
+      const { data: escalation } = await supabaseClient
+        .from('ceo_escalations')
+        .select('decision')
+        .eq('trade_id', tradeId)
+        .single();
+
+      guards.ceoApproved = escalation?.decision === 'approve_direct';
+    } else {
+      guards.ceoApproved = true; // Low/moderate risk doesn't need CEO approval
+    }
+  }
+
+  // Check FP approval
+  if (proposedStage === 'FUNDED') {
+    const { data: fpDecision } = await supabaseClient
+      .from('fp_decisions')
+      .select('decision')
+      .eq('trade_id', tradeId)
+      .order('decided_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    guards.fpApproved = fpDecision?.decision === 'approve';
+  }
+
+  // Check capital deployed (at least 60%)
+  if (proposedStage === 'PROCURING') {
+    const { data: trade } = await supabaseClient
+      .from('trades')
+      .select('capital_deployed_pct')
+      .eq('id', tradeId)
+      .single();
+
+    guards.capitalDeployed = trade ? trade.capital_deployed_pct >= 60 : false;
+  }
+
+  // Check goods delivered (volume_procured_mt or delivered_weight_mt set)
+  if (proposedStage === 'DELIVERED') {
+    const { data: trade } = await supabaseClient
+      .from('trades')
+      .select('delivered_weight_mt, volume_mt')
+      .eq('id', tradeId)
+      .single();
+
+    guards.goodsDelivered = trade ? (trade.delivered_weight_mt || 0) > 0 : false;
+  }
+
+  // Check buyer payment confirmed
+  if (proposedStage === 'SETTLED') {
+    const { data: trade } = await supabaseClient
+      .from('trades')
+      .select('buyer_payment_usd, buyer_payment_date')
+      .eq('id', tradeId)
+      .single();
+
+    guards.buyerPaid = trade ? !!trade.buyer_payment_usd && trade.buyer_payment_usd > 0 : false;
+
+    // Dual CFO confirmation on waterfall (schema: both_confirmed / status)
+    const { data: waterfall } = await supabaseClient
+      .from('waterfall_instructions')
+      .select('both_confirmed, status')
+      .eq('trade_id', tradeId)
+      .single();
+
+    guards.waterfallComplete =
+      !!waterfall &&
+      (waterfall.both_confirmed === true ||
+        ['INSTRUCTED', 'CONFIRMED'].includes(String(waterfall.status || '')));
+  }
+
+  // Check closure checklist complete
+  if (proposedStage === 'CLOSED') {
+    const { data: closure } = await supabaseClient
+      .from('trade_closure_checklists')
+      .select('waterfall_confirmed, trr_received, ccc_received, buyer_perf_recorded, trader_rec_updated, fp_report_sent, record_locked')
+      .eq('trade_id', tradeId)
+      .single();
+
+    guards.closureComplete = closure
+      ? closure.waterfall_confirmed &&
+        closure.trr_received &&
+        closure.ccc_received &&
+        closure.buyer_perf_recorded &&
+        closure.trader_rec_updated &&
+        closure.fp_report_sent &&
+        closure.record_locked
+      : false;
+  }
+
+  return guards;
 }
 
 // ─── EXPORTS ─────────────────────────────────────────────────────────────────

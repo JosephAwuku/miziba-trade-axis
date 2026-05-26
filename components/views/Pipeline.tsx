@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Trade } from '@/lib/types';
-import { ST as stageConfig, CMD as commodityConfig } from '@/lib/data';
+import { ST as stageConfig, CMD as commodityConfig, commodityLabel } from '@/lib/data';
 import { usd, mt } from '@/lib/utils';
 import { Badge, ProgressBar } from '../ui';
 
@@ -31,14 +31,14 @@ const Pipeline: React.FC<PipelineProps> = ({ trades, onDealSelect }) => {
               padding: '10px 12px',
               borderBottom: 'none'
             }}>
-              <span style={{ fontSize: '10px', fontWeight: 800, color: cfg.c, letterSpacing: '0.05em' }}>
+              <span style={{ fontSize: '13.5px', fontWeight: 800, color: cfg.c, letterSpacing: '0.05em' }}>
                 {cfg.l.toUpperCase()}
               </span>
               <span className="badge" style={{ 
                 background: '#fff', 
                 color: cfg.c, 
-                fontSize: '10px', 
-                padding: '2px 6px',
+                fontSize: '13px', 
+                padding: '3px 8px',
                 boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
               }}>
                 {stageTrades.length}
@@ -52,18 +52,18 @@ const Pipeline: React.FC<PipelineProps> = ({ trades, onDealSelect }) => {
             }}>
               {totalValue > 0 && (
                 <div style={{ 
-                  fontSize: '10px', 
+                  fontSize: '13px', 
                   color: cfg.c, 
                   textAlign: 'center', 
-                  padding: '4px 0 8px', 
+                  padding: '6px 0 10px', 
                   fontWeight: 700,
-                  opacity: 0.8 
+                  opacity: 0.9 
                 }}>
                   {usd(totalValue)}
                 </div>
               )}
               {stageTrades.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '30px 10px', color: '#9CA3AF', fontSize: '11px', fontStyle: 'italic' }}>
+                <div style={{ textAlign: 'center', padding: '30px 10px', color: '#9CA3AF', fontSize: '14px', fontStyle: 'italic' }}>
                   No deals in queue
                 </div>
               ) : (
@@ -78,13 +78,13 @@ const Pipeline: React.FC<PipelineProps> = ({ trades, onDealSelect }) => {
                       boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                        <span className="mono" style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 600 }}>{d.id}</span>
-                        <span className="badge" style={{ background: `${cm.c}15`, color: cm.c, border: 'none', fontSize: '10px', padding: '2px 6px' }}>
-                          {cm.i} {d.cmd}
+                        <span className="mono" style={{ fontSize: '12.5px', color: '#9CA3AF', fontWeight: 600 }}>{d.id}</span>
+                        <span className="badge" style={{ background: `${cm.c}15`, color: cm.c, border: 'none', fontSize: '12px', padding: '3px 8px' }}>
+                          {cm.i} {commodityLabel(d.cmd)}
                         </span>
                       </div>
-                      <div style={{ fontWeight: 700, fontSize: '12px', marginBottom: '2px', color: '#111827' }}>{d.tr}</div>
-                      <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '8px' }}>{mt(d.vol)} · Gr.{d.gr}</div>
+                      <div style={{ fontWeight: 700, fontSize: '14.5px', marginBottom: '2px', color: '#111827' }}>{d.tr}</div>
+                      <div style={{ fontSize: '13.5px', color: '#6B7280', marginBottom: '8px' }}>{mt(d.vol)} · Gr.{d.gr}</div>
                       
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span className="mono" style={{ fontSize: '12px', fontWeight: 800 }}>{usd(d.cv)}</span>
@@ -101,7 +101,7 @@ const Pipeline: React.FC<PipelineProps> = ({ trades, onDealSelect }) => {
                         <div style={{ marginTop: '10px', borderTop: '1px solid #F3F4F6', paddingTop: '8px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
                             <span style={{ fontSize: '9px', color: '#9CA3AF', fontWeight: 600 }}>DEPLOYED</span>
-                            <span className="mono" style={{ fontSize: '10px', color: '#2563EB', fontWeight: 700 }}>{d.dep}%</span>
+                            <span className="mono" style={{ fontSize: '10px', color: '#8B0000', fontWeight: 700 }}>{d.dep}%</span>
                           </div>
                           <ProgressBar value={d.dep} color={d.dep > 80 ? 'var(--wa)' : 'var(--su)'} height="4px" />
                         </div>

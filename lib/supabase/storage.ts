@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../supabase';
+import { getDocumentsBucket, getFdpBucket } from './buckets';
 
 /**
  * Handles uploading the FDP PDF to Supabase Storage
@@ -8,10 +9,10 @@ export async function uploadFDP(tradeId: string, buffer: Uint8Array): Promise<{ 
     if (!supabaseAdmin) throw new Error('Supabase Admin client not initialized');
 
     const filename = `fdp_${tradeId}_${Date.now()}.pdf`;
-    const path = `${tradeId}/${filename}`;
+    const path = `fdp/${tradeId}/${filename}`;
 
     const { data: uploadData, error: uploadError } = await (supabaseAdmin.storage
-      .from('fdp_documents') as any)
+      .from(getFdpBucket()) as any)
       .upload(path, buffer, {
         contentType: 'application/pdf',
         upsert: true
@@ -34,7 +35,7 @@ export async function getFDPSignedUrl(path: string): Promise<{ url: string; erro
     if (!supabaseAdmin) throw new Error('Supabase Admin client not initialized');
 
     const { data, error } = await (supabaseAdmin.storage
-      .from('fdp_documents') as any)
+      .from(getFdpBucket()) as any)
       .createSignedUrl(path, 3600); // 1 hour expiry
 
     if (error) return { url: '', error };

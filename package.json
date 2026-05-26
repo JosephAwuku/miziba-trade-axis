@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "email:dev": "email dev --dir emails"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.2",
@@ -16,13 +17,19 @@
     "bcryptjs": "^3.0.3",
     "jsonwebtoken": "^9.0.3",
     "next": "16.2.3",
+    "otplib": "^13.4.0",
     "pdf-lib": "^1.17.1",
+    "qrcode": "^1.5.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "recharts": "^3.8.1"
+    "react-email": "^6.1.1",
+    "recharts": "^3.8.1",
+    "resend": "^6.12.3"
   },
   "devDependencies": {
+    "@react-email/ui": "^6.1.1",
     "@types/node": "^20",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

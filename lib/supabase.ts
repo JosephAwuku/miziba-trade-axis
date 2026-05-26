@@ -2,9 +2,11 @@
  * Supabase client configuration for TradeAxis
  */
 
+import { createServerClient as createBaseClient } from '@supabase/ssr';
 import { createClient as createBrowserClient } from './supabase/client';
 import { createClient as createServerClient, createAdminClient } from './supabase/server';
 import { Database } from './database.types';
+import { getSupabaseServiceRoleKey, getSupabaseUrl } from './supabase/env';
 
 // Backward compatibility exports
 export const supabase = typeof window !== 'undefined' ? createBrowserClient() : null;
@@ -28,7 +30,7 @@ export async function getUserProfile(userId: string) {
     .from('users')
     .select(`
       *,
-      organisations:org_id (
+      organisations!users_org_id_fkey (
         name
       )
     `)
@@ -114,11 +116,14 @@ export async function getSupabaseAdmin() {
 /**
  * Legacy admin client export for direct use in API routes
  */
-import { createServerClient as createBaseClient } from '@supabase/ssr';
-export const supabaseAdmin = typeof window === 'undefined' 
-  ? createBaseClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { cookies: { getAll: () => [], setAll: () => {} } }
-    )
-  : null as any;
+function createSupabaseAdminSingleton() {
+  const url = getSupabaseUrl();
+  const key = getSupabaseServiceRoleKey();
+  if (!url || !key) return null;
+  return createBaseClient<Database>(url, key, {
+    cookies: { getAll: () => [], setAll: () => {} },
+  });
+}
+
+export const supabaseAdmin =
+  typeof window === 'undefined' ? createSupabaseAdminSingleton() : (null as any);

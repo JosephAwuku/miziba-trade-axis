@@ -19,10 +19,10 @@ interface CustomSelectProps {
   error?: string | boolean;
 }
 
-export const CustomSelect: React.FC<CustomSelectProps> = ({ 
-  options, 
-  value, 
-  onChange, 
+export const CustomSelect: React.FC<CustomSelectProps> = ({
+  options,
+  value,
+  onChange,
   placeholder = "Select Option",
   name,
   className = "",
@@ -47,7 +47,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
       }
     }
   }, [isOpen]);
-  
+
   const selectedOption = options.find(o => o.value === value);
 
   // Close when clicking outside
@@ -67,17 +67,17 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
   };
 
   return (
-    <div 
-      ref={containerRef} 
-      className={`custom-select-container ${className}`} 
-      style={{ 
-        position: 'relative', 
+    <div
+      ref={containerRef}
+      className={`custom-select-container ${className}`}
+      style={{
+        position: 'relative',
         width: '100%',
         zIndex: isOpen ? 1000 : 1,
-        ...style 
+        ...style
       }}
     >
-      <div 
+      <div
         className={`custom-select-display ${isOpen ? 'open' : ''}`}
         onClick={() => setIsOpen(!isOpen)}
         style={{
@@ -86,8 +86,8 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
           padding: compact ? '4px 34px 4px 10px' : '14px 40px 14px 16px',
           width: '100%',
           color: selectedOption ? 'var(--text)' : 'var(--text3)',
-          background: error 
-            ? 'var(--da-bg)' 
+          background: error
+            ? 'var(--da-bg)'
             : 'linear-gradient(#fff, #fff) padding-box, linear-gradient(135deg, var(--cr), var(--pu)) border-box',
           border: error ? '2px solid var(--da)' : '2px solid transparent',
           cursor: 'pointer',
@@ -100,20 +100,20 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
           zIndex: 1001
         }}
       >
-        <span style={{ 
-          whiteSpace: 'nowrap', 
-          overflow: 'hidden', 
+        <span style={{
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
           textOverflow: 'ellipsis',
           flex: 1
         }}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
-        
+
         {/* Custom Arrow */}
-        <div style={{ 
-          position: 'absolute', 
-          right: compact ? '10px' : '14px', 
-          top: '50%', 
+        <div style={{
+          position: 'absolute',
+          right: compact ? '10px' : '14px',
+          top: '50%',
           transform: `translateY(-50%) rotate(${isOpen ? '180deg' : '0deg'})`,
           transition: 'transform 0.2s ease',
           display: 'flex',
@@ -127,7 +127,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
 
       {/* Flyout Menu */}
       {isOpen && (
-        <div 
+        <div
           className="custom-select-menu fade-in"
           style={{
             position: 'absolute',
@@ -151,7 +151,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
             </div>
           ) : (
             options.map((opt) => (
-              <div 
+              <div
                 key={opt.value}
                 className="custom-select-option"
                 onClick={() => handleSelect(opt.value)}
@@ -171,9 +171,9 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
               >
                 {opt.label}
                 {selectedOption?.value === opt.value && (
-                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="20 6 9 17 4 12"></polyline>
-                   </svg>
+                  </svg>
                 )}
               </div>
             ))
