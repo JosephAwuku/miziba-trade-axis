@@ -5,6 +5,7 @@
  * @see https://react.email/ Templates → Magic Links → AWS Email Verification
  */
 
+import * as React from 'react';
 import {
   Body,
   Button,
@@ -58,19 +59,19 @@ export default function TradeAxisAccountActivationEmail({
             enable two-factor authentication before you can access the platform — this takes under two minutes.
           </Text>
 
-          <Section style={codeCardOuter}>
-            <Section style={codeCardInner}>
-              <Text style={codeLabel}>Temporary Password</Text>
-              <Text style={codeValue}>{temporaryPassword}</Text>
-            </Section>
+          <Section style={credentialsBox}>
+            <Text style={credRow}>
+              <span style={credLabelStyle}>Login email</span>
+              <br />
+              <span style={credValueStyle}>{loginEmail}</span>
+            </Text>
+            <Hr style={credDivider} />
+            <Text style={credRow}>
+              <span style={credLabelStyle}>Temporary Password</span>
+              <br />
+              <span style={credValueStyle}>{temporaryPassword}</span>
+            </Text>
           </Section>
-
-          <Text style={text}>
-            <strong>Your login email:</strong>{' '}
-            <Link href={`mailto:${loginEmail}`} style={linkMono}>
-              {loginEmail}
-            </Link>
-          </Text>
 
           <Section style={ctaSection}>
             <Button href={loginUrl} style={button}>
@@ -145,39 +146,42 @@ const text = {
   margin: '0 0 16px',
 };
 
-/** Gradient frame — mirrors globals `.metric` / `.card` border treatment */
-const codeCardOuter = {
+const credentialsBox = {
   margin: '24px 0',
-  padding: '2px',
-  borderRadius: '12px',
-  background: 'linear-gradient(135deg, #8b0000 0%, #7c3aed 100%)',
-  boxShadow:
-    '0 4px 12px rgba(139, 0, 0, 0.06), 0 2px 8px rgba(13, 31, 60, 0.06)',
+  padding: '20px 24px',
+  borderRadius: '8px',
+  border: '2px solid #8b0000',
+  backgroundColor: '#fdf8f8',
 };
 
-const codeCardInner = {
-  backgroundColor: '#ffffff',
-  borderRadius: '10px',
-  padding: '24px',
-  textAlign: 'center' as const,
-};
-
-const codeLabel = {
-  color: 'rgba(13, 31, 60, 0.72)',
-  fontSize: '12px',
-  fontWeight: '800',
-  textTransform: 'uppercase' as const,
-  letterSpacing: '0.1em',
-  margin: '0 0 12px',
-};
-
-const codeValue = {
-  color: '#18181b',
-  fontSize: '24px',
-  fontWeight: '700',
-  letterSpacing: '0.06em',
+const credRow = {
   margin: '0',
+  fontSize: '15px',
+  lineHeight: '1.5',
+};
+
+const credLabelStyle: React.CSSProperties = {
+  display: 'block',
+  color: '#6b7280',
+  fontSize: '11px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  marginBottom: '4px',
+};
+
+const credValueStyle: React.CSSProperties = {
+  display: 'block',
+  color: '#111827',
+  fontSize: '18px',
+  fontWeight: 700,
   fontFamily: 'Menlo, Monaco, Consolas, monospace',
+  letterSpacing: '0.04em',
+};
+
+const credDivider = {
+  borderColor: '#e5e7eb',
+  margin: '14px 0',
 };
 
 const ctaSection = {
