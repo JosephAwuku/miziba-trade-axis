@@ -13,6 +13,7 @@ import TraderSettlementView from '../trader/TraderSettlementView';
 import StageBadge from '../trader/StageBadge';
 import { apiClient } from '@/lib/api';
 import { commodityLabel } from '@/lib/data';
+import { TraderVerificationProvider, useTraderVerification } from '@/lib/contexts/TraderVerificationContext';
 
 interface TraderPortalProps {
   trades: Trade[];
@@ -20,30 +21,17 @@ interface TraderPortalProps {
   view: string;
   onViewChange: (view: View) => void;
   onRefresh: () => void;
+  user?: { full_name?: string; org_name?: string } | null;
 }
 
-const TraderPortal: React.FC<TraderPortalProps> = ({ trades, onNotify, view, onViewChange, onRefresh }) => {
+const TraderPortalInner: React.FC<TraderPortalProps> = ({ trades, onNotify, view, onViewChange, onRefresh, user }) => {
+  const { kycStatus, isLoading } = useTraderVerification();
+  
   // Derive internal sub-view from global view ID
   const currentSubView = view.replace('trs_', '') as 'status' | 'apply' | 'company' | 'settle' | 'verify' | 'overview' | 'drafts';
   const profileView = currentSubView === 'verify' ? 'company' : currentSubView;
   const [activeTradeId, setActiveTradeId] = useState<string | null>(null);
   const [editingDraftId, setEditingDraftId] = useState<string | undefined>(undefined);
-  const [traderKycStatus, setTraderKycStatus] = useState<string>('PENDING');
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const profile = await apiClient.getTraderProfile();
-        if (!cancelled) setTraderKycStatus(profile.kyc_status || 'PENDING');
-      } catch {
-        if (!cancelled) setTraderKycStatus('PENDING');
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [view]);
 
   // Handle local navigation by updating global state
   const handleLocalNavigate = (subView: string) => {
@@ -62,7 +50,8 @@ const TraderPortal: React.FC<TraderPortalProps> = ({ trades, onNotify, view, onV
           trades={trades} 
           onNavigate={handleLocalNavigate} 
           onSelectTrade={setActiveTradeId}
-          onNotify={onNotify} 
+          onNotify={onNotify}
+          user={user}
         />
       )}
 
@@ -78,37 +67,48 @@ const TraderPortal: React.FC<TraderPortalProps> = ({ trades, onNotify, view, onV
                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text2)' }}>No applications found.</div>
                  ) : (
                    trades.map(t => (
-                     <div key={t.id} style={{ 
-                       display: 'flex', 
-                       justifyContent: 'space-between', 
-                       alignItems: 'center', 
-                       padding: '16px 20px', 
-                       background: '#fff',
-                       border: '1.5px solid transparent',
-                       borderRadius: '12px',
-                       transition: 'all 0.2s',
-                       backgroundImage: 'linear-gradient(#fff, #fff), linear-gradient(135deg, var(--cr), var(--pu))',
-                       backgroundOrigin: 'border-box',
-                       backgroundClip: 'padding-box, border-box',
-                     }}>
-                        <div style={{ flex: 1 }}>
+                     <div
+                       key={t.id}
+                       className="trader-application-row"
+                       style={{
+                         display: 'flex',
+                         justifyContent: 'space-between',
+                         alignItems: 'center',
+                         padding: '16px 20px',
+                         background: '#fff',
+                         border: '1.5px solid transparent',
+                         borderRadius: '12px',
+                         transition: 'all 0.2s',
+                         backgroundImage: 'linear-gradient(#fff, #fff), linear-gradient(135deg, var(--cr), var(--pu))',
+                         backgroundOrigin: 'border-box',
+                         backgroundClip: 'padding-box, border-box',
+                         minWidth: 0,
+                         boxSizing: 'border-box',
+                       }}
+                     >
+                        <div className="trader-application-row__main" style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>
                             {commodityLabel(t.cmd)} · {t.vol} MT
                           </div>
-                          <div style={{ fontSize: '13px', color: 'var(--text3)', display: 'flex', gap: '12px' }}>
+                          <div
+                            className="trader-application-row__meta"
+                            style={{ fontSize: '13px', color: 'var(--text3)', display: 'flex', gap: '12px', flexWrap: 'wrap' }}
+                          >
                             <span>ID: <span className="mono">{t.id.slice(0, 8)}</span></span>
                             <span>Buyer: {t.buyer}</span>
                           </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <div className="trader-application-row__actions" style={{ display: 'flex', alignItems: 'center', gap: '16px', flexShrink: 0 }}>
                           <StageBadge stage={t.stage} />
-                          <Button 
-                            variant="primary" 
-                            size="sm" 
-                            style={{ padding: '8px 20px', fontSize: '13px', fontWeight: 700 }}
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            className="trader-application-row__cta"
+                            style={{ padding: '8px 20px', fontSize: '13px', fontWeight: 700, whiteSpace: 'nowrap' }}
                             onClick={() => setActiveTradeId(t.id)}
                           >
-                            Track Application →
+                            <span className="hide-mobile">View Application →</span>
+                            <span className="show-mobile">View →</span>
                           </Button>
                         </div>
                      </div>
@@ -152,7 +152,7 @@ const TraderPortal: React.FC<TraderPortalProps> = ({ trades, onNotify, view, onV
                 </div>
                 <StatusTracker
                   trade={selectedTrade}
-                  kycStatus={traderKycStatus}
+                  kycStatus={kycStatus}
                   onNavigateToVerify={() => handleLocalNavigate('company')}
                 />
                 <div className="card" style={{ padding: '24px', marginBottom: '14px' }}>
@@ -218,6 +218,15 @@ const TraderPortal: React.FC<TraderPortalProps> = ({ trades, onNotify, view, onV
         <TraderSettlementView trades={trades} onNotify={onNotify} />
       )}
     </div>
+  );
+};
+
+// Wrap with verification provider to avoid re-fetching on every navigation
+const TraderPortal: React.FC<TraderPortalProps> = (props) => {
+  return (
+    <TraderVerificationProvider>
+      <TraderPortalInner {...props} />
+    </TraderVerificationProvider>
   );
 };
 

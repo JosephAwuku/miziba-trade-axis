@@ -26,8 +26,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${workSans.variable} ${jetbrainsMono.variable}`}>
-      <body className={workSans.className}>
+    <html
+      lang="en"
+      className={`${workSans.variable} ${jetbrainsMono.variable}`}
+      suppressHydrationWarning
+    >
+      <body className={workSans.className} suppressHydrationWarning>
         <NavigationProvider>
           {children}
         </NavigationProvider>

@@ -1,3 +1,10 @@
+/** First token of full_name as entered when the user was created (e.g. "Isaac Kobby" → "Isaac"). */
+export const getFirstNameFromFullName = (fullName?: string | null): string => {
+  const trimmed = fullName?.trim();
+  if (!trimmed) return '';
+  return trimmed.split(/\s+/)[0];
+};
+
 export const usd = (n: number | null) => 
   n === null ? '—' : '$' + Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
 

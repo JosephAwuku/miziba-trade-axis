@@ -197,8 +197,8 @@ const TraderOnboarding: React.FC<TraderOnboardingProps> = ({ onNotify }) => {
 
     if (step === 1) {
       if (!formData.companyName.trim()) newErrors.companyName = 'Company legal name is required.';
-      if (!formData.registrarNumber.trim()) newErrors.registrarNumber = 'Registrar number is required.';
-      if (!formData.tinNumber.trim()) newErrors.tinNumber = 'TIN number is required for tax compliance.';
+      if (!formData.registrarNumber.trim()) newErrors.registrarNumber = 'Company Registration Number is required.';
+      if (!formData.tinNumber.trim()) newErrors.tinNumber = 'Company TIN is required for tax compliance.';
     }
 
     if (step === 2) {
@@ -403,8 +403,8 @@ const TraderOnboarding: React.FC<TraderOnboardingProps> = ({ onNotify }) => {
               </div>
               <div className="g2" style={{ gap: '20px' }}>
                 <ProfileField label="Legal Name" value={formData.companyName} />
-                <ProfileField label="Reg Number" value={formData.registrarNumber} />
-                <ProfileField label="TIN Number" value={formData.tinNumber} />
+                <ProfileField label="Company Registration Number (GRA)" value={formData.registrarNumber} />
+                <ProfileField label="Company TIN" value={formData.tinNumber} />
                 <ProfileField label="Registered Address" value={formData.address} />
               </div>
             </Card>
@@ -613,9 +613,18 @@ const TraderOnboarding: React.FC<TraderOnboardingProps> = ({ onNotify }) => {
     <div className="fade-in">
       <div style={{ marginBottom: '32px' }}>
         <h2 style={{ fontSize: '28px', fontWeight: 800, letterSpacing: '-0.02em' }}>Company Profile</h2>
-        <p style={{ color: '#6B7280', marginTop: '4px' }}>
-          Complete your organisation profile, upload compliance documents, and submit for Miziba approval. Trade-specific files (contracts, B/L,
-          etc.) are added separately on each deal under Trade documents.
+        <p
+          className="trader-onboarding-intro"
+          style={{
+            color: 'var(--nv)',
+            marginTop: '8px',
+            fontSize: '17px',
+            maxWidth: '960px',
+            lineHeight: 1.55,
+          }}
+        >
+          Complete your organisation profile, upload the necessary documents, and submit them for approval. Once
+          Miziba approves your company, you can start submitting trades on Miziba TradeAxis.
         </p>
       </div>
 
@@ -665,7 +674,7 @@ const TraderOnboarding: React.FC<TraderOnboardingProps> = ({ onNotify }) => {
                 {errors.companyName && <div className="field-error">{errors.companyName}</div>}
               </div>
               <div className="field">
-                <label>Registrar Number (GRL)</label>
+                <label>Company Registration Number (GRA)</label>
                 <input
                   type="text"
                   value={formData.registrarNumber}
@@ -678,7 +687,7 @@ const TraderOnboarding: React.FC<TraderOnboardingProps> = ({ onNotify }) => {
                 {errors.registrarNumber && <div className="field-error">{errors.registrarNumber}</div>}
               </div>
               <div className="field">
-                <label>TIN Number</label>
+                <label>Company TIN</label>
                 <input
                   type="text"
                   value={formData.tinNumber}
@@ -875,8 +884,8 @@ const TraderOnboarding: React.FC<TraderOnboardingProps> = ({ onNotify }) => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {[
                       { label: 'Legal Name', val: formData.companyName },
-                      { label: 'Reg Number', val: formData.registrarNumber },
-                      { label: 'TIN Number', val: formData.tinNumber },
+                      { label: 'Company Registration Number (GRA)', val: formData.registrarNumber },
+                      { label: 'Company TIN', val: formData.tinNumber },
                       { label: 'Address', val: formData.address }
                     ].map(item => (
                       <div key={item.label}>

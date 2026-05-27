@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { RiskBreakdown, RiskAssessment } from '@/lib/types';
 import { RISK_DIMENSIONS, getRiskRecommendation } from '@/lib/risk-config';
 import { Card, Button, ProgressBar } from './ui';
@@ -11,26 +11,20 @@ interface RiskAssessmentToolProps {
   loading?: boolean;
 }
 
-const RiskAssessmentTool: React.FC<RiskAssessmentToolProps> = ({ initialData, onSave, loading }) => {
-  const defaultScores: RiskBreakdown = {
-    buyer_risk: 0,
-    trader_risk: 0,
-    commodity_price_risk: 0,
-    sourcing_supply_risk: 0,
-    logistics_delivery_risk: 0,
-  };
+const defaultScores: RiskBreakdown = {
+  buyer_risk: 0,
+  trader_risk: 0,
+  commodity_price_risk: 0,
+  sourcing_supply_risk: 0,
+  logistics_delivery_risk: 0,
+};
 
+const RiskAssessmentToolInner: React.FC<RiskAssessmentToolProps> = ({ initialData, onSave, loading }) => {
   const [scores, setScores] = useState<RiskBreakdown>(
     initialData?.breakdown || defaultScores
   );
 
   const [notes, setNotes] = useState(initialData?.notes || '');
-
-  // Keep calculator bound to latest persisted assessment from API.
-  useEffect(() => {
-    setScores(initialData?.breakdown || defaultScores);
-    setNotes(initialData?.notes || '');
-  }, [initialData]);
 
   const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
   const rec = getRiskRecommendation(totalScore);
@@ -229,6 +223,17 @@ const RiskAssessmentTool: React.FC<RiskAssessmentToolProps> = ({ initialData, on
       </div>
     </div>
   );
+};
+
+const RiskAssessmentTool: React.FC<RiskAssessmentToolProps> = (props) => {
+  const syncKey = [
+    props.initialData?.calculated_at,
+    props.initialData?.risk_score,
+    props.initialData?.notes,
+    JSON.stringify(props.initialData?.breakdown),
+  ].join('|');
+
+  return <RiskAssessmentToolInner key={syncKey} {...props} />;
 };
 
 export default RiskAssessmentTool;

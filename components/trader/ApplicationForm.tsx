@@ -13,6 +13,7 @@ import {
   hasAllRequiredTradeDocs,
   type TradeDocumentRecord,
 } from '@/lib/trade-documents';
+import { useTraderVerification } from '@/lib/contexts/TraderVerificationContext';
 
 const INITIAL_FORM_DATA: Partial<TradeApplicationInput> = {
   commodity: 'cashew',
@@ -41,10 +42,11 @@ interface ApplicationFormProps {
 }
 
 const ApplicationForm: React.FC<ApplicationFormProps> = ({ onSuccess, onNotify, onNavigate, draftId, onDraftSaved }) => {
+  // Use cached verification status from context
+  const { canSubmitTrades, isLoading: profileLoading } = useTraderVerification();
+  
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [canSubmitTrades, setCanSubmitTrades] = useState(false);
-  const [profileLoading, setProfileLoading] = useState(true);
   const [buyers, setBuyers] = useState<BuyerProfile[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -56,20 +58,6 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ onSuccess, onNotify, 
   const [savingDraft, setSavingDraft] = useState(false);
   const [tradeDocuments, setTradeDocuments] = useState<TradeDocumentRecord[]>([]);
   const [docError, setDocError] = useState('');
-
-  useEffect(() => {
-    const loadKyc = async () => {
-      try {
-        const profile = await apiClient.getTraderProfile();
-        setCanSubmitTrades(profile.can_submit_trades === true || profile.is_fully_verified === true);
-      } catch {
-        setCanSubmitTrades(false);
-      } finally {
-        setProfileLoading(false);
-      }
-    };
-    loadKyc();
-  }, []);
 
   // Load from draft or local storage on mount
   useEffect(() => {
@@ -332,12 +320,28 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ onSuccess, onNotify, 
     }
   };
 
-  const steps = ['Offtake Contract', 'Trade Documents', 'Equity & Terms', 'Submit'];
+  const steps = ['Contract Details', 'Contract Documents', 'Equity & Terms', 'Submit'];
 
+  // Show minimal, optimistic loading only on initial verification check
   if (profileLoading) {
     return (
-      <div className="card" style={{ padding: '40px', textAlign: 'center', color: 'var(--text2)' }}>
-        Checking verification status…
+      <div className="card" style={{ padding: '40px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text2)' }}>
+          <div style={{
+            width: '20px',
+            height: '20px',
+            border: '2px solid rgba(139, 0, 0, 0.2)',
+            borderTopColor: '#8B0000',
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite'
+          }} />
+          <span style={{ fontSize: '14px' }}>Loading...</span>
+        </div>
+        <style>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     );
   }

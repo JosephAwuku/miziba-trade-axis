@@ -21,7 +21,7 @@ const TraderSettlementView: React.FC<TraderSettlementViewProps> = ({ trades, onN
         <div style={{ fontSize: '28px', marginBottom: '10px' }} aria-hidden>💳</div>
         <div style={{ fontSize: '16px', fontWeight: 700, marginBottom: '8px' }}>No payments to show yet</div>
         <p style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.6, maxWidth: '380px', margin: '0 auto' }}>
-          Payment details from your completed trades appear here. You don't have any completed trades yet.
+          Payment details from your completed trades appear here. You don&apos;t have any completed trades yet.
         </p>
       </Card>
     );

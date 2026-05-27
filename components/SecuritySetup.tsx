@@ -65,7 +65,7 @@ const PasswordChangeStep: React.FC<{
           Set Your Password
         </div>
         <p style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.5 }}>
-          You've been assigned a temporary password. Create a permanent one before continuing.
+          You&apos;ve been assigned a temporary password. Create a permanent one before continuing.
         </p>
       </div>
 

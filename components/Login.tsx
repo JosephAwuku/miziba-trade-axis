@@ -77,31 +77,30 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onOnboarding }) => {
   };
 
   return (
-    <div style={{
-      height: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: '#F9F5F2',
-      fontFamily: 'var(--font-work-sans)',
-    }}>
-      <div style={{
-        width: '100%',
-        maxWidth: '500px',
-        padding: '40px',
-        background: '#fff',
-        borderRadius: '16px',
-        boxShadow: '0 24px 48px -12px rgba(139, 0, 0, 0.14), 0 12px 24px -8px rgba(124, 58, 237, 0.1)',
-      }}>
+    <div
+      className="auth-page"
+      style={{
+        height: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#F9F5F2',
+        fontFamily: 'var(--font-work-sans)',
+      }}
+    >
+      <div
+        className="auth-card"
+        style={{
+          width: '100%',
+          maxWidth: '500px',
+          padding: '40px',
+          background: '#fff',
+          borderRadius: '16px',
+          boxShadow: '0 24px 48px -12px rgba(139, 0, 0, 0.14), 0 12px 24px -8px rgba(124, 58, 237, 0.1)',
+        }}
+      >
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{
-            width: '60px', height: '60px',
-            background: 'linear-gradient(135deg, #8B0000 0%, #C41E3A 100%)',
-            borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontSize: '32px', fontWeight: 800, margin: '0 auto 16px',
-            boxShadow: '0 10px 20px -5px rgba(139, 0, 0, 0.4)',
-          }}>T</div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#111827', marginBottom: '8px', letterSpacing: '-0.02em' }}>TradeAxis</h1>
+          <h1 style={{ fontSize: '30px', fontWeight: 800, color: '#111827', marginBottom: '8px', letterSpacing: '-0.02em' }}>TradeAxis</h1>
           <p style={{ fontSize: '14px', color: '#64748b', fontWeight: 500 }}>
             {step === 'otp' ? 'Step 2 of 2: Verify your identity' : 'Manage your trade operations in one place'}
           </p>

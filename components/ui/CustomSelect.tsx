@@ -34,21 +34,17 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
   const [openUpwards, setOpenUpwards] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Measure space and flip direction if needed
-  useEffect(() => {
-    if (isOpen && containerRef.current) {
+  const selectedOption = options.find(o => o.value === value);
+
+  const toggleOpen = () => {
+    if (!isOpen && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       const spaceBelow = window.innerHeight - rect.bottom;
-      const menuHeight = 280; // Approximate height with padding
-      if (spaceBelow < menuHeight && rect.top > menuHeight) {
-        setOpenUpwards(true);
-      } else {
-        setOpenUpwards(false);
-      }
+      const menuHeight = 280;
+      setOpenUpwards(spaceBelow < menuHeight && rect.top > menuHeight);
     }
-  }, [isOpen]);
-
-  const selectedOption = options.find(o => o.value === value);
+    setIsOpen((prev) => !prev);
+  };
 
   // Close when clicking outside
   useEffect(() => {
@@ -79,7 +75,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
     >
       <div
         className={`custom-select-display ${isOpen ? 'open' : ''}`}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={toggleOpen}
         style={{
           fontSize: compact ? '11px' : '16px',
           borderRadius: '10px',

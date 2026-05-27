@@ -172,6 +172,7 @@ export const SessionTimer: React.FC<SessionTimerProps> = ({ onSessionExpired, on
       )}
 
       <div
+        className="session-timer-float"
         style={{
           position: 'fixed',
           bottom: '20px',

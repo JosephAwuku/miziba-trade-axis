@@ -25,26 +25,51 @@ const TraderKycReminderCard: React.FC<TraderKycReminderCardProps> = ({
   >
     <div
       className="flex-stack-mobile"
-      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: '24px',
+      }}
     >
-      <p style={{ fontSize: '14px', color: 'var(--text2)', lineHeight: 1.6, margin: 0, flex: 1 }}>
-        <strong style={{ color: 'var(--text)' }}>Company verification required.</strong> Complete and submit KYC, then
-        wait for CEO or Operations Admin approval before this trade can progress in Miziba&apos;s workflow.
-      </p>
-      <Button
-        variant="primary"
-        size="sm"
-        style={{
-          background: '#8B0000',
-          border: 'none',
-          fontWeight: 700,
-          flexShrink: 0,
-          boxShadow: '0 2px 4px rgba(139, 0, 0, 0.2)',
-        }}
-        onClick={onNavigateToCompany}
-      >
-        Go to company profile →
-      </Button>
+      <div style={{ flex: '1 1 auto', minWidth: 0, maxWidth: 'min(100%, 800px)' }}>
+        <div
+          style={{
+            fontSize: '15px',
+            fontWeight: 700,
+            color: 'var(--text)',
+            letterSpacing: '-0.01em',
+            lineHeight: 1.35,
+          }}
+        >
+          Complete Your Company/Business Verification
+        </div>
+        <p
+          style={{
+            margin: '10px 0 0',
+            fontSize: '14px',
+            color: 'var(--text2)',
+            lineHeight: 1.55,
+          }}
+        >
+          Complete your company profile verification process for your trade applications to be reviewed and funded.
+        </p>
+      </div>
+      <div style={{ flexShrink: 0, alignSelf: 'center' }}>
+        <Button
+          variant="primary"
+          size="sm"
+          style={{
+            background: '#8B0000',
+            border: 'none',
+            fontWeight: 700,
+            boxShadow: '0 2px 4px rgba(139, 0, 0, 0.2)',
+          }}
+          onClick={onNavigateToCompany}
+        >
+          Go to company profile →
+        </Button>
+      </div>
     </div>
   </Card>
 );

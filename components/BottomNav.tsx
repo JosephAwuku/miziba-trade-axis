@@ -29,10 +29,9 @@ const BottomNav: React.FC<BottomNavProps> = ({ role, view, onViewChange, onOpenM
       ];
     } else if (role === 'trader') {
       items = [
-        { id: 'trs_overview', i: '⬢', l: 'Home' },
-        { id: 'trs_status', i: '◎', l: 'Status' },
-        { id: 'trs_apply', i: '+', l: 'Apply' },
-        { id: 'trs_docs', i: '◈', l: 'Docs' }
+        { id: 'trs_overview', i: '⬢', l: 'Overview' },
+        { id: 'trs_status', i: '◎', l: 'Applications' },
+        { id: 'trs_apply', i: '+', l: 'New Trade' },
       ];
     } else if (role === 'finance_partner') {
       items = [
@@ -110,9 +109,9 @@ const BottomNav: React.FC<BottomNavProps> = ({ role, view, onViewChange, onOpenM
           <div className="bn-dot" />
         </button>
       ))}
-      <button className="bn-item" onClick={onOpenMore}>
+      <button className="bn-item" onClick={onOpenMore} aria-label="Open menu">
         <span className="bn-icon">☰</span>
-        <span>More</span>
+        <span>Menu</span>
         <div className="bn-dot" style={{ background: '#94A3B8' }} />
       </button>
     </nav>

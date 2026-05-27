@@ -8,15 +8,17 @@ import { commodityLabel } from '@/lib/data';
 import StageBadge from './StageBadge';
 import { sumFacilityByDeployment, isDeployedTradeStage } from '@/lib/portfolio-metrics';
 import { apiClient } from '@/lib/api';
+import { getFirstNameFromFullName } from '@/lib/utils';
 
 interface TraderOverviewProps {
   trades: Trade[];
   onNavigate: (view: string) => void;
   onSelectTrade: (id: string) => void;
   onNotify: (msg: string, type?: string) => void;
+  user?: { full_name?: string } | null;
 }
 
-const TraderOverview: React.FC<TraderOverviewProps> = ({ trades, onNavigate, onSelectTrade, onNotify }) => {
+const TraderOverview: React.FC<TraderOverviewProps> = ({ trades, onNavigate, onSelectTrade, onNotify, user }) => {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -38,7 +40,7 @@ const TraderOverview: React.FC<TraderOverviewProps> = ({ trades, onNavigate, onS
   const isVerified = profile?.is_fully_verified === true || profile?.can_submit_trades === true;
   const showKycBanner = profile && (kycStatus === 'PENDING' || kycStatus === 'REJECTED' || kycStatus === 'FLAGGED');
   const showUnderReviewBanner = profile && kycStatus === 'UNDER_REVIEW';
-  const companyName = profile?.name || '...';
+  const firstName = getFirstNameFromFullName(user?.full_name) || 'there';
 
   const handleApplyClick = () => {
     if (!isVerified) {
@@ -59,9 +61,11 @@ const TraderOverview: React.FC<TraderOverviewProps> = ({ trades, onNavigate, onS
 
   return (
     <div className="fade-in" style={{ width: '100%', maxWidth: '100%' }}>
-      <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text)' }}>Welcome back, {companyName}</h2>
-        <p style={{ fontSize: '14px', color: 'var(--text2)' }}>Here is a summary of your recent trades and account status.</p>
+      <div className="trader-welcome-header" style={{ marginBottom: '24px' }}>
+        <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text)' }}>Welcome back, {firstName}</h2>
+        <p className="trader-welcome-sub" style={{ fontSize: '14px', color: 'var(--text2)' }}>
+          Here is a summary of your recent trades and account status.
+        </p>
       </div>
 
       {showUnderReviewBanner && (
@@ -83,33 +87,42 @@ const TraderOverview: React.FC<TraderOverviewProps> = ({ trades, onNavigate, onS
           backgroundOrigin: 'border-box',
           backgroundClip: 'padding-box, border-box'
         }}>
-          <div className="flex-stack-mobile" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px' }}>
-            <div style={{ flex: 1 }}>
-              <h3 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text)', marginBottom: '12px' }}>
-                Your path to trade finance starts with verification
+          <div
+            className="flex-stack-mobile"
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: '28px',
+            }}
+          >
+            <div style={{ flex: '1 1 auto', minWidth: 0, maxWidth: 'min(100%, 800px)' }}>
+              <h3 className="trader-kyc-banner-heading" style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text)', marginBottom: '12px' }}>
+                Complete Your Company/Business Verification
               </h3>
-              <div style={{ fontSize: '14.5px', color: 'var(--text2)', lineHeight: 1.6, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <p>
-                {kycStatus === 'REJECTED'
-                  ? 'Your verification was not approved. Update your documents and resubmit for review.'
-                  : 'To begin submitting trades and getting funding, you must first complete your business profile.'}
-              </p>
-                <p>This secure, one-time verification ensures your business is ready to trade internationally.</p>
+              <div className="trader-kyc-banner-text" style={{ fontSize: '14.5px', color: 'var(--text2)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <p style={{ margin: 0 }}>
+                  {kycStatus === 'REJECTED'
+                    ? 'Your verification was not approved. Update your documents and resubmit for review.'
+                    : 'To begin submitting trades and getting funding on Miziba TradeAxis, you must first complete your business profile, this is a one-time verification process.'}
+                </p>
               </div>
             </div>
-            <Button 
-                style={{ 
-                  background: '#8B0000', 
-                  color: '#fff', 
-                  fontWeight: 700, 
-                  padding: '14px 36px', 
+            <div style={{ flexShrink: 0, alignSelf: 'center' }}>
+              <Button
+                style={{
+                  background: '#8B0000',
+                  color: '#fff',
+                  fontWeight: 700,
+                  padding: '14px 36px',
                   fontSize: '14.5px',
-                  boxShadow: '0 2px 4px rgba(139, 0, 0, 0.2)'
+                  boxShadow: '0 2px 4px rgba(139, 0, 0, 0.2)',
                 }}
                 onClick={() => onNavigate('company')}
-            >
-              Start Company Profile →
-            </Button>
+              >
+                Complete verification →
+              </Button>
+            </div>
           </div>
         </Card>
       )}
@@ -180,9 +193,28 @@ const TraderOverview: React.FC<TraderOverviewProps> = ({ trades, onNavigate, onS
             backgroundClip: 'padding-box, border-box',
           }}
         >
-          <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '12px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text)' }}>Your Recent Trades</h3>
-            <Button variant="secondary" size="md" onClick={() => onNavigate('status')}>View All Trades</Button>
+          <div
+            className="trader-recent-trades-header"
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '20px',
+              gap: '12px',
+            }}
+          >
+            <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text)', margin: 0, minWidth: 0 }}>
+              Your Recent Trades
+            </h3>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="trader-recent-trades-cta"
+              onClick={() => onNavigate('status')}
+            >
+              <span className="hide-mobile">View All Trades</span>
+              <span className="show-mobile">View All</span>
+            </Button>
           </div>
 
           {activeTrades.length === 0 ? (
@@ -206,29 +238,17 @@ const TraderOverview: React.FC<TraderOverviewProps> = ({ trades, onNavigate, onS
               {activeTrades.slice(0, 3).map(t => (
                 <div
                   key={t.id}
+                  className="trade-row-card"
                   onClick={() => {
                     onNavigate('status');
                     onSelectTrade(t.id);
                   }}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '12px',
-                    border: '1.5px solid transparent',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    transition: 'all 0.1s',
-                    backgroundImage: 'linear-gradient(#fff, #fff), linear-gradient(135deg, var(--cr), var(--pu))',
-                    backgroundOrigin: 'border-box',
-                    backgroundClip: 'padding-box, border-box',
-                  }}
                 >
                   <div>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>{commodityLabel(t.cmd)} · {t.vol} MT</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text3)' }}>{t.buyer} · <span className="mono">{t.id.slice(0, 8)}</span></div>
+                    <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>{commodityLabel(t.cmd)} · {t.vol} MT</div>
+                    <div style={{ fontSize: '13px', color: 'var(--text3)' }}>{t.buyer} · <span className="mono">{t.id.slice(0, 8)}</span></div>
                   </div>
-                  <StageBadge stage={t.stage} />
+                  <StageBadge stage={t.stage} fontSize="12.5px" />
                 </div>
               ))}
             </div>

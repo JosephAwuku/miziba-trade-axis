@@ -23,6 +23,7 @@ interface SidebarProps {
   onViewChange: (view: View) => void;
   isOpen: boolean;
   onClose: () => void;
+  onLogout: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -33,6 +34,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onViewChange,
   isOpen,
   onClose,
+  onLogout,
 }) => {
   const getNavItems = () => {
     if (role === 'cfo') {
@@ -122,19 +124,15 @@ const Sidebar: React.FC<SidebarProps> = ({
       >
         <button className="sb-close" onClick={onClose}>✕</button>
         <div className="sb-brand" style={{ borderBottom: '1px solid var(--bdr)', padding: '14px 18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div className="logo-box" style={{ width: '32px', height: '32px', fontSize: '18px' }}>T</div>
-            <div>
-              <div className="sb-title" style={{
-                color: 'var(--text)',
-                fontSize: '18px',
-                fontWeight: 800,
-                letterSpacing: '-0.02em',
-                lineHeight: 1
-              }}>
-                {isFP ? 'Ecobank DFI' : 'TradeAxis'}
-              </div>
-            </div>
+          <div className="sb-title" style={{
+            color: 'var(--text)',
+            fontSize: '18px',
+            fontWeight: 800,
+            letterSpacing: '0.04em',
+            lineHeight: 1,
+            textTransform: 'uppercase',
+          }}>
+            {isFP ? 'Ecobank DFI' : 'TradeAxis'}
           </div>
         </div>
         <nav className="sb-nav" style={{ padding: '8px 6px' }}>
@@ -157,7 +155,6 @@ const Sidebar: React.FC<SidebarProps> = ({
               <span
                 className="nb-icon"
                 style={{
-                  opacity: view === n.id ? 1 : 0.5,
                   fontSize: "16px",
                   display: "inline-flex",
                   alignItems: "center",
@@ -166,33 +163,33 @@ const Sidebar: React.FC<SidebarProps> = ({
                 }}
               >
                 {n.id === "admin_onboard" ? (
-                  <UsersManagementIcon size={18} style={{ opacity: 1 }} />
+                  <UsersManagementIcon size={18} />
                 ) : n.id === "ops_overview" ? (
-                  <SystemOverviewIcon size={18} style={{ opacity: 1 }} />
+                  <SystemOverviewIcon size={18} />
                 ) : n.id === "trs_overview" ? (
-                  <SystemOverviewIcon size={18} style={{ opacity: 1 }} />
+                  <SystemOverviewIcon size={18} />
                 ) : n.id === "trs_company" ? (
-                  <CompanyProfileIcon size={18} style={{ opacity: 1 }} />
+                  <CompanyProfileIcon size={18} />
                 ) : n.id === "trs_settle" ? (
-                  <PaymentsIcon size={18} style={{ opacity: 1 }} />
+                  <PaymentsIcon size={18} />
                 ) : n.id === "trs_apply" ? (
-                  <PlusIcon size={18} style={{ opacity: 1 }} />
+                  <PlusIcon size={18} />
                 ) : n.id === "trs_drafts" ? (
-                  <DraftsIcon size={18} style={{ opacity: 1 }} />
+                  <DraftsIcon size={18} />
                 ) : n.id === "admin_audit" ? (
-                  <AuditLogIcon size={18} style={{ opacity: 1 }} />
+                  <AuditLogIcon size={18} />
                 ) : n.id === "admin_verify" ? (
-                  <RequiredActionIcon size={18} style={{ opacity: 1 }} />
+                  <RequiredActionIcon size={18} />
                 ) : n.id === "pipeline" ? (
-                  <TradeApplicationIcon size={18} style={{ opacity: 1 }} />
+                  <TradeApplicationIcon size={18} />
                 ) : n.id === "trs_status" ? (
-                  <TradeApplicationIcon size={18} style={{ opacity: 1 }} />
+                  <TradeApplicationIcon size={18} />
                 ) : n.id === "portfolio" || n.id === "fp_portfolio" ? (
-                  <PortfolioIcon size={18} style={{ opacity: 1 }} />
+                  <PortfolioIcon size={18} />
                 ) : n.id === "buyers" ? (
-                  <BuyerDatabaseIcon size={18} style={{ opacity: 1 }} />
+                  <BuyerDatabaseIcon size={18} />
                 ) : n.id === "aggregators" ? (
-                  <AggregatorDatabaseIcon size={18} style={{ opacity: 1 }} />
+                  <AggregatorDatabaseIcon size={18} />
                 ) : (
                   n.i
                 )}
@@ -214,6 +211,29 @@ const Sidebar: React.FC<SidebarProps> = ({
               </div>
             )}
           </div>
+          
+          <button
+            onClick={() => {
+              onLogout();
+              onClose();
+            }}
+            className="sb-logout-btn"
+            style={{
+              marginTop: '12px',
+              width: '100%',
+              padding: '10px 16px',
+              background: '#FEF2F2',
+              color: '#EF4444',
+              border: '1px solid #FEE2E2',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            Log Out
+          </button>
         </div>
       </div>
     </>

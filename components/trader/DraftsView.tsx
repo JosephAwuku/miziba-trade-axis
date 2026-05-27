@@ -92,7 +92,7 @@ const DraftsView: React.FC<DraftsViewProps> = ({ onEditDraft, onNotify, onNaviga
           </h3>
           <p style={{ color: 'var(--text2)', fontSize: '14px', lineHeight: 1.6 }}>
             Save your trade applications as drafts to continue working on them later. 
-            Drafts are automatically saved when you click "Save as Draft" in the application form.
+            Drafts are automatically saved when you click &ldquo;Save as Draft&rdquo; in the application form.
           </p>
         </div>
       </div>

@@ -407,20 +407,57 @@ export default function Home() {
         background: '#0d1f3c',
         color: '#fff'
       }}>
-        <div style={{
-          width: '50px',
-          height: '50px',
-          borderRadius: '12px',
-          background: 'linear-gradient(135deg, #8B0000, #C41E3A)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '24px',
-          fontWeight: 800,
-          marginBottom: '20px',
-          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)'
-        }}>T</div>
-        <div style={{ fontSize: '11px', letterSpacing: '0.2em', opacity: 0.5 }}>SYNCHRONIZING SECURE SESSION...</div>
+        <style>{`
+          @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(200%); }
+          }
+          @keyframes pulse {
+            0%, 100% { opacity: 0.3; transform: scale(0.95); }
+            50% { opacity: 1; transform: scale(1); }
+          }
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .loading-animation * {
+              animation: none !important;
+            }
+          }
+        `}</style>
+        
+        {/* Option 1: Elegant Shimmer Bar */}
+        <div className="loading-animation" style={{ 
+          width: '200px', 
+          height: '4px', 
+          background: 'rgba(139, 0, 0, 0.2)',
+          borderRadius: '2px',
+          overflow: 'hidden',
+          position: 'relative',
+          marginBottom: '24px'
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'linear-gradient(90deg, transparent, rgba(196, 30, 58, 0.8), transparent)',
+            animation: 'shimmer 2s ease-in-out infinite',
+            willChange: 'transform'
+          }} />
+        </div>
+
+        <div style={{ 
+          fontSize: '11px', 
+          letterSpacing: '0.15em', 
+          opacity: 0.6,
+          fontWeight: 600,
+          animation: 'pulse 2s ease-in-out infinite'
+        }}>
+          INITIALIZING SESSION
+        </div>
       </div>
     );
   }
@@ -484,7 +521,10 @@ export default function Home() {
     admin_audit: 'Audit Log'
   };
 
-  const currentViewLabel = dashboardTitle;
+  const currentViewLabel =
+    role === 'trader' && user?.org_name?.trim()
+      ? user.org_name.trim()
+      : dashboardTitle;
 
   return (
     <div className="app">
@@ -523,6 +563,7 @@ export default function Home() {
         onViewChange={handleViewChange}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
+        onLogout={handleLogout}
       />
 
       <div className="main">
@@ -1064,6 +1105,7 @@ export default function Home() {
               view={view}
               onViewChange={handleViewChange}
               onRefresh={fetchTrades}
+              user={user}
             />
           )}
 

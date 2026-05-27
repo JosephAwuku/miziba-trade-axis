@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import NotificationCenter from './NotificationCenter';
 
 interface TopbarProps {
@@ -28,6 +28,9 @@ const Topbar: React.FC<TopbarProps> = ({
   searchTerm = '',
   onSearch,
 }) => {
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
   const currentDate = new Date().toLocaleDateString('en-GB', {
     weekday: 'long',
     day: 'numeric',
@@ -61,28 +64,61 @@ const Topbar: React.FC<TopbarProps> = ({
       </div>
 
       <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-        <div className="top-search" style={{ position: 'relative', width: '240px', display: 'flex', alignItems: 'center' }}>
-          <svg style={{ position: 'absolute', left: '10px', color: '#94A3B8' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <div
+          className={`top-search ${searchFocused ? 'top-search--focused' : ''} ${searchOpen ? 'top-search--open' : ''}`}
+        >
+          <button
+            type="button"
+            className="top-search-trigger"
+            aria-label="Search trades"
+            aria-expanded={searchOpen}
+            onClick={() => setSearchOpen(true)}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </button>
+          <svg
+            className="top-search-icon"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <input 
-            type="text" 
-            placeholder="Search trades..." 
+          <input
+            type="text"
+            placeholder="Search trades..."
             value={searchTerm}
             onChange={(e) => onSearch?.(e.target.value)}
-            style={{ 
-              padding: '7px 10px 7px 32px', 
-              fontSize: '12px', 
-              borderRadius: '8px', 
-              border: '1px solid var(--su-b)', // Matching brand border
-              background: '#fff',
-              width: '100%',
-              outline: 'none',
-              transition: 'all 0.2s'
+            onFocus={() => {
+              setSearchFocused(true);
+              setSearchOpen(true);
             }}
-            onFocus={(e) => e.target.style.borderColor = 'var(--cr)'}
-            onBlur={(e) => e.target.style.borderColor = 'var(--su-b)'}
+            onBlur={() => {
+              setSearchFocused(false);
+              if (!searchTerm.trim()) {
+                setSearchOpen(false);
+              }
+            }}
           />
         </div>
 

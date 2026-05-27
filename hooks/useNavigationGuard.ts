@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 import { useNavigation } from '@/lib/contexts/NavigationContext';
 
 export const useNavigationGuard = (isDirty: boolean) => {
@@ -32,7 +32,7 @@ export const useNavigationGuard = (isDirty: boolean) => {
     const handleInternalClick = (e: MouseEvent) => {
       if (!isDirty) return;
 
-      let target = e.target as HTMLElement;
+      const target = e.target as HTMLElement;
       const link = target.closest('a');
 
       if (link) {

@@ -25,19 +25,15 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
   const [openUpwards, setOpenUpwards] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Measure space and flip direction if needed
-  useEffect(() => {
-    if (isOpen && containerRef.current) {
+  const toggleOpen = () => {
+    if (!isOpen && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       const spaceBelow = window.innerHeight - rect.bottom;
-      const menuHeight = 360; // Calendar is taller than select dropdown
-      if (spaceBelow < menuHeight && rect.top > menuHeight) {
-        setOpenUpwards(true);
-      } else {
-        setOpenUpwards(false);
-      }
+      const menuHeight = 360;
+      setOpenUpwards(spaceBelow < menuHeight && rect.top > menuHeight);
     }
-  }, [isOpen]);
+    setIsOpen((prev) => !prev);
+  };
 
   // Internal view state (what month we are looking at)
   const [viewDate, setViewDate] = useState(() => {
@@ -103,7 +99,7 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
     >
       <div
         className={`custom-datepicker-display ${isOpen ? 'open' : ''}`}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={toggleOpen}
         style={{
           fontSize: '16px',
           borderRadius: '10px',

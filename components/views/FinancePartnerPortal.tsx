@@ -670,7 +670,7 @@ const FinancePartnerPortal: React.FC<FinancePartnerPortalProps> = ({
 
             {onboardingStep === 1 && (
               <div style={{ color: 'var(--text2)', fontSize: '14px', lineHeight: 1.6 }}>
-                <p style={{ marginBottom: '16px' }}>Review Miziba's operational history and risk mitigation strategies. Miziba maintains a perfect 0% default rate across all past trades.</p>
+                <p style={{ marginBottom: '16px' }}>Review Miziba&apos;s operational history and risk mitigation strategies. Miziba maintains a perfect 0% default rate across all past trades.</p>
                 <div className="alert" style={{ background: 'var(--cr-bg)', border: '1px solid var(--cr-b)', color: 'var(--cr)', padding: '16px', borderRadius: '8px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10"></circle>

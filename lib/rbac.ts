@@ -6,6 +6,7 @@
  * Enforced as middleware in Next.js API routes.
  */
 
+import jwt from 'jsonwebtoken';
 import { Role, User, Trade, Document } from './types';
 
 // ─── PERMISSIONS MATRIX ───────────────────────────────────────────────────────
@@ -206,7 +207,6 @@ export function redactForRole(role: Role, resourceType: string, data: any): any 
  * Validates Bearer token and attaches user to req.user.
  */
 export function authenticate(jwtSecret: string) {
-  const jwt = require('jsonwebtoken');
   return async function (req: any, res: any, next: any) {
     const header = req.headers.authorization || '';
     const token = header.startsWith('Bearer ') ? header.slice(7) : null;
@@ -217,11 +217,19 @@ export function authenticate(jwtSecret: string) {
 
     try {
       const decoded = jwt.verify(token, jwtSecret);
+      if (typeof decoded === 'string') {
+        return res.status(401).json({ error: 'UNAUTHORIZED', message: 'Invalid token.' });
+      }
+
+      const payload = decoded as jwt.JwtPayload & { user?: unknown };
+      if (!payload.user) {
+        return res.status(401).json({ error: 'UNAUTHORIZED', message: 'Invalid token.' });
+      }
 
       // Check session is still valid in DB
       // For Supabase, this would be handled by Supabase auth
       // For now, assume user is attached
-      req.user = decoded.user;
+      req.user = payload.user;
       next();
     } catch (err) {
       return res.status(401).json({ error: 'UNAUTHORIZED', message: 'Invalid token.' });
